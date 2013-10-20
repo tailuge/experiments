@@ -1,7 +1,8 @@
 package exp
 
-class Node {
+trait Node {
 
-  def children():List[Node] = Nil;
+  def eval() : Double;
+  def children() : List[Node];
   
 }
