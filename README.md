@@ -8,3 +8,15 @@ If large language models internalise the world in an effort to predict the next 
 I think this would work but with only ~10000 parameters the results are hopeless. Maybe someone who understands transformer architecture will take this idea to a real implementation someday.
 
 
+# Dev
+```
+yarn deps
+yarn shellcheck
+```
+# Setup
+```
+yarn fetch
+```
+# Train
+
+# Inference
