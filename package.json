@@ -1,0 +1,35 @@
+{
+    "name": "experiments",
+    "description": "Experiments",
+    "version": "0.1.0",
+    "author": "tailuge",
+    "main": "dist/main.js",
+    "license": "GPL-3.0",
+    "engines": {
+        "yarn": "1.x"
+    },
+    "scripts": {
+        "test": "jest --verbose",
+        "coverage": "jest --coverage --coverageReporters json",
+        "dev": "webpack ",
+        "prettify": "prettier --write --no-semi {src,test}/**/*.[jt]s",
+        "serve": "webpack serve --client-web-socket-url $(gp url 8080 | sed 's/http/ws/' | sed 's#$#/ws#')",
+        "deps": "npx yarn-check --skip-unused",
+        "build": "pwd; cd server; pwd; yarn build",
+        "start": "pwd; cd server; pwd; yarn install; yarn start"
+    },
+    "dependencies": {
+        "onnxruntime-web": "^1.14.0"
+    },
+    "devDependencies": {
+        "node-notifier": "^10.0.1",
+        "prettier": "^2.8.8",
+        "ts-jest": "^29.1.0",
+        "ts-loader": "^9.4.2",
+        "ts-node": "^10.9.1",
+        "typescript": "^5.0.4",
+        "webpack": "^5.82.0",
+        "webpack-cli": "^5.0.2",
+        "webpack-dev-server": "^4.13.3"
+    }
+}
