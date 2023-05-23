@@ -15,8 +15,7 @@
         "prettify": "prettier --write --no-semi {src,test}/**/*.[jt]s",
         "serve": "webpack serve --client-web-socket-url $(gp url 8080 | sed 's/http/ws/' | sed 's#$#/ws#')",
         "deps": "npx yarn-check --skip-unused",
-        "build": "pwd; cd server; pwd; yarn build",
-        "start": "pwd; cd server; pwd; yarn install; yarn start"
+        "fetch": "./fetch.sh"
     },
     "dependencies": {
         "onnxruntime-web": "^1.14.0"
