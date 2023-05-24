@@ -16,7 +16,8 @@
         "serve": "webpack serve --client-web-socket-url $(gp url 8080 | sed 's/http/ws/' | sed 's#$#/ws#')",
         "deps": "npx yarn-check --skip-unused",
         "fetch": "./fetch.sh",
-        "shellcheck": "shellcheck *.sh"
+        "shellcheck": "shellcheck *.sh",
+        "train": "python train.py"
     },
     "dependencies": {
         "onnxruntime-web": "^1.14.0"

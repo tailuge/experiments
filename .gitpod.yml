@@ -3,5 +3,6 @@ tasks:
       (
         sudo apt install zstd
         sudo apt install shellcheck
-        pip install -r requirements.txt
+        pip install torch -index-url https://download.pytorch.org/whl/cpu
+        pip install onnx
       )

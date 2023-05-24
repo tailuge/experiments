@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+import onnx
 
 # hyperparameters
 batch_size = 16 # how many independent sequences will we process in parallel?
@@ -220,3 +221,6 @@ context = torch.zeros((1, 1), dtype=torch.long, device=device)
 print(decode(m.generate(context, max_new_tokens=100)[0].tolist()))
 print(trainloss)
  
+
+torch.save(model.state_dict(), "model/chessgpt.pt")
+torch.onnx.export(model, context, "model/chessgpt.onnx", verbose=False)

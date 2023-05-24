@@ -18,5 +18,7 @@ yarn shellcheck
 yarn fetch
 ```
 # Train
-
+```
+yarn train
+```
 # Inference
