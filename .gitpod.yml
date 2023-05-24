@@ -2,7 +2,7 @@ tasks:
  - init: >
         sudo apt update &&
         sleep 2 &&
-        sudo apt upgrade &&
+        sudo apt upgrade -y &&
         sleep 2 &&
         sudo apt install zstd shellcheck -y &&
         sleep 2 &&
