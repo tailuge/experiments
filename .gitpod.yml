@@ -1,8 +1,7 @@
 tasks:
- - init: |
-      (
-        sudo apt install zstd
-        sudo apt install shellcheck
-        pip install torch -index-url https://download.pytorch.org/whl/cpu
-        pip install onnx
-      )
+ - init: >
+        sudo apt update &&
+        sudo apt install zstd shellcheck &&
+        pip install torch -index-url https://download.pytorch.org/whl/cpu &&
+        pip install onnx &&
+        echo "done"
