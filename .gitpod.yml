@@ -4,7 +4,7 @@ tasks:
         sleep 2 &&
         sudo apt upgrade &&
         sleep 2 &&
-        sudo apt install zstd shellcheck &&
+        sudo apt install zstd shellcheck -y &&
         sleep 2 &&
         pip install --upgrade pip &&
         sleep 2 &&
