@@ -4,7 +4,9 @@ tasks:
         sleep 2 &&
         sudo apt install zstd shellcheck &&
         sleep 2 &&
-        pip install torch -index-url https://download.pytorch.org/whl/cpu &&
+        pip install numpy &&
+        sleep 2 &&
+        pip install torch &&
         sleep 2 &&
         pip install onnx &&
         sleep 2 &&
