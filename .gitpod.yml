@@ -2,7 +2,11 @@ tasks:
  - init: >
         sudo apt update &&
         sleep 2 &&
+        sudo apt upgrade &&
+        sleep 2 &&
         sudo apt install zstd shellcheck &&
+        sleep 2 &&
+        pip install --upgrade pip &&
         sleep 2 &&
         pip install numpy &&
         sleep 2 &&
