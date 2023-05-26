@@ -1,17 +1,7 @@
+image:
+  file: .gitpod.dockerfile
 tasks:
  - init: >
-        sudo apt update &&
-        sleep 2 &&
-        sudo apt upgrade -y &&
-        sleep 2 &&
-        sudo apt install zstd shellcheck -y &&
-        sleep 2 &&
-        pip install --upgrade pip &&
-        sleep 2 &&
-        pip install numpy &&
-        sleep 2 &&
-        pip install torch &&
-        sleep 2 &&
-        pip install onnx &&
+        yarn install &&
         sleep 2 &&
         echo "done"
