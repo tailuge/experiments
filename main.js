@@ -11,6 +11,18 @@ async function main() {
         // it has 1 output: 'c'(float32, 3x3)
         const session = await ort.InferenceSession.create('./chessgpt.onnx');
 
+        console.log(session);
+        console.log(ort);
+        ort.env.debug = true;
+
+        console.log(ort.registerBackend.name);
+
+        const inputNames = session.inputNames;
+        const outputNames = session.outputNames;
+
+        console.log(`inputNames:${inputNames}`);
+        console.log(`outputNames:${outputNames}`);
+        
         // prepare inputs. a tensor need its corresponding TypedArray as data
         const dataA = Float32Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
         const dataB = Float32Array.from([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120]);
@@ -18,8 +30,8 @@ async function main() {
         const tensorB = new ort.Tensor('float32', dataB, [4, 3]);
 
         // prepare feeds. use model input names as keys.
-        const feeds = { a: tensorA, b: tensorB };
-
+        const feeds = { input: {1: tensorA}, b: tensorB };
+        console.log(feeds);
         // feed inputs and run
         const results = await session.run(feeds);
 
