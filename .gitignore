@@ -10,4 +10,3 @@ data/
 model/
 dist/ort*
 dist/bundle*
-dist/chess*
