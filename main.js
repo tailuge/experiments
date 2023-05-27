@@ -3,7 +3,7 @@ const ort = require('onnxruntime-web');
 
 async function main() {
     try {
-        document.write(`model loaded`);
+        console.log(`model loaded`);
         // create a new session and load the specific model.
         //
         // the model in this example contains a single MatMul node
@@ -28,7 +28,7 @@ async function main() {
         document.write(`data of result tensor 'c': ${dataC}`);
 
     } catch (e) {
-        document.write(`failed to inference ONNX model: ${e}.`);
+        console.log(`failed to inference ONNX model: ${e}.`);
     }
 }
 

@@ -13,8 +13,23 @@ module.exports = () => {
             port: 8080,
             client: {
                 progress: true,
+                overlay: {
+                    errors: true,
+                    warnings: false,
+                  },
             }
         },
+        ignoreWarnings: [
+            {
+              module: /module2\.js\?[34]/, // A RegExp
+            },
+            {
+              module: /[13]/,
+              message: /homepage/,
+            },
+            /warning from compiler/,
+            (warning) => true,
+          ],
         target: ['web'],
         entry: path.resolve(__dirname, 'main.js'),
         output: {
