@@ -11,6 +11,8 @@ async function main() {
         // it has 1 output: 'c'(float32, 3x3)
         const session = await ort.InferenceSession.create('./chessgpt.onnx');
 
+        document.write(`inference`);
+
         console.log(session);
         console.log(ort);
         ort.env.debug = true;
@@ -22,15 +24,15 @@ async function main() {
 
         console.log(`inputNames:${inputNames}`);
         console.log(`outputNames:${outputNames}`);
-        
+
+        const bigint64 = new BigInt64Array(2)
         // prepare inputs. a tensor need its corresponding TypedArray as data
-        const dataA = Float32Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-        const dataB = Float32Array.from([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120]);
-        const tensorA = new ort.Tensor('float32', dataA, [3, 4]);
-        const tensorB = new ort.Tensor('float32', dataB, [4, 3]);
+        //  const dataA = Float32Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+        const dataA = new BigInt64Array(12);
+        const tensorA = new ort.Tensor('int64', dataA, [1, 1]);
 
         // prepare feeds. use model input names as keys.
-        const feeds = { input: {1: tensorA}, b: tensorB };
+        const feeds = { 'input.1': tensorA };
         console.log(feeds);
         // feed inputs and run
         const results = await session.run(feeds);
@@ -40,7 +42,8 @@ async function main() {
         document.write(`data of result tensor 'c': ${dataC}`);
 
     } catch (e) {
-        console.log(`failed to inference ONNX model: ${e}.`);
+        console.log(`failed inference ONNX model: ${e}.`);
+        document.write(`failed inference ONNX model: ${e}.`);
     }
 }
 
