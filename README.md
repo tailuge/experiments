@@ -7,18 +7,28 @@ ChessGPT [![Open in Colab](https://colab.research.google.com/assets/colab-badge.
 If large language models internalise the world in an effort to predict the next word with transformer networks, can they internalise chess by predicting PGN 'words' from real games.
 I think this would work but with only ~10000 parameters the results are hopeless. Maybe someone who understands transformer architecture will take this idea to a real implementation someday.
 
+Onnx model for inference in web page deployed at [https://tailuge.github.io/experiments/dist/index.html](https://tailuge.github.io/experiments/dist/index.html)
 
 # Dev
 ```
 yarn deps
+yarn upgrade -L
 yarn shellcheck
 ```
 # Setup
+Get games from [lichess.org](lichess.org) 
 ```
 yarn fetch
 ```
 # Train
+Python
 ```
 yarn train
 ```
 # Inference
+
+In browser inference from ONNX model
+```
+yarn dev
+yarn serve
+```
