@@ -22,24 +22,27 @@ async function main() {
         const inputNames = session.inputNames;
         const outputNames = session.outputNames;
 
+        console.log("Output:")
         console.log(`inputNames:${inputNames}`);
         console.log(`outputNames:${outputNames}`);
 
-        const bigint64 = new BigInt64Array(2)
-        // prepare inputs. a tensor need its corresponding TypedArray as data
-        //  const dataA = Float32Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-        const dataA = new BigInt64Array(12);
-        const tensorA = new ort.Tensor('int64', dataA, [1, 1]);
+        const blockSize = 32
+        const dataA = new BigInt64Array(blockSize);
+        console.log(dataA)
+        const tensorA = new ort.Tensor('int64', dataA, [1,32]);
 
+        console.log("TensorA:");
+        console.log(tensorA);
         // prepare feeds. use model input names as keys.
         const feeds = { 'input.1': tensorA };
         console.log(feeds);
         // feed inputs and run
         const results = await session.run(feeds);
 
+        console.log(results)
         // read from results
-        const dataC = results.c.data;
-        document.write(`data of result tensor 'c': ${dataC}`);
+//        const dataC = results.c.data;
+//        document.write(`data of result tensor 'c': ${dataC}`);
 
     } catch (e) {
         console.log(`failed inference ONNX model: ${e}.`);

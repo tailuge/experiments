@@ -217,8 +217,19 @@ for iter in range(max_iters):
     optimizer.step()
 
 # generate from the model
-context = torch.zeros((1, 1), dtype=torch.long, device=device)
-print(decode(m.generate(context, max_new_tokens=100)[0].tolist()))
+context = torch.zeros((1, block_size), dtype=torch.long, device=device)
+
+
+prefix="e4 e5 "
+padded_string = prefix.rjust(block_size)[-block_size:]
+print(padded_string)
+padded_prefix_tensor = torch.tensor(encode(padded_string)).unsqueeze(0)
+
+print(padded_prefix_tensor.shape)
+print(context.shape)
+
+print(decode(m.generate(padded_prefix_tensor, max_new_tokens=32)[0].tolist()))
+#print(decode(m.generate(context, max_new_tokens=32)[0].tolist()))
 print(trainloss)
  
 
