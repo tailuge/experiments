@@ -1,5 +1,21 @@
 import onnx
 import onnxruntime as rt
+import numpy as np
+import torch
+import torch.nn.functional as F
+
+chars=['\n', ' ', '#', '+', '-', '1', '2', '3', '4', '5', '6', '7', '8', '=', 'B', 'K', 'N', 'O', 'Q', 'R', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'x']
+vocab_size = len(chars)
+
+print(chars)
+print(vocab_size)
+
+# create a mapping from characters to integers
+stoi = { ch:i for i,ch in enumerate(chars) }
+itos = { i:ch for i,ch in enumerate(chars) }
+encode = lambda s: [stoi[c] for c in s] # encoder: take a string, output a list of integers
+decode = lambda l: ''.join([itos[i] for i in l]) # decoder: take a list of integers, output a string
+
 
 model = onnx.load("./model/chessgpt.onnx")
 sess = rt.InferenceSession(model.SerializeToString())
@@ -18,3 +34,34 @@ output_shape = sess.get_outputs()[0].shape
 print("output shape", output_shape)
 output_type = sess.get_outputs()[0].type
 print("output type", output_type)
+
+
+str = "e4 e5 "
+str = str.rjust(32)[:32]
+strEnc = encode(str)
+print(strEnc)
+# Preprocess the input data
+input_data = np.array(strEnc, dtype=np.int64)  # Replace with your actual input data
+
+# Reshape the input data to match the model's input shape if needed
+input_data = input_data.reshape(input_shape)
+
+# Run the model
+output = sess.run([output_name], {input_name: input_data})
+
+output = output[0]  # Extract the output from the list
+
+# Focus only on the last time step
+logits = output[:, -1, :]  # Shape: (B, C)
+
+print(f"logits={logits}")
+print(f"torch.tensor(logits).shape={torch.tensor(logits).shape}")
+# Apply softmax to get probabilities
+probs = F.softmax(torch.tensor(logits), dim=-1)  # Shape: (B, C)
+
+print(probs)
+print(probs.shape)
+# Sample from the distribution
+idx_next = torch.multinomial(probs, num_samples=1)  # Shape: (B, 1)
+print(f"idx_next.shape={idx_next.shape}")
+print(decode(idx_next.tolist()[0]))
