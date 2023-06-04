@@ -36,32 +36,33 @@ output_type = sess.get_outputs()[0].type
 print("output type", output_type)
 
 
-str = "e4 e5 "
-str = str.rjust(32)[:32]
-strEnc = encode(str)
-print(strEnc)
-# Preprocess the input data
-input_data = np.array(strEnc, dtype=np.int64)  # Replace with your actual input data
+def getNext(prompt):
+    str = prompt.rjust(32)[:32]
+    strEnc = encode(str)
 
-# Reshape the input data to match the model's input shape if needed
-input_data = input_data.reshape(input_shape)
+    # Preprocess the input data
+    input_data = np.array(strEnc, dtype=np.int64)  # Replace with your actual input data
 
-# Run the model
-output = sess.run([output_name], {input_name: input_data})
+    # Reshape the input data to match the model's input shape if needed
+    input_data = input_data.reshape(input_shape)
 
-output = output[0]  # Extract the output from the list
+    # Run the model
+    output = sess.run([output_name], {input_name: input_data})
 
-# Focus only on the last time step
-logits = output[:, -1, :]  # Shape: (B, C)
+    output = output[0]  # Extract the output from the list
 
-print(f"logits={logits}")
-print(f"torch.tensor(logits).shape={torch.tensor(logits).shape}")
-# Apply softmax to get probabilities
-probs = F.softmax(torch.tensor(logits), dim=-1)  # Shape: (B, C)
+    # Focus only on the last time step
+    logits = output[:, -1, :]  # Shape: (B, C)
 
-print(probs)
-print(probs.shape)
-# Sample from the distribution
-idx_next = torch.multinomial(probs, num_samples=1)  # Shape: (B, 1)
-print(f"idx_next.shape={idx_next.shape}")
-print(decode(idx_next.tolist()[0]))
+    # Apply softmax to get probabilities
+    probs = F.softmax(torch.tensor(logits), dim=-1)  # Shape: (B, C)
+
+    # Sample from the distribution
+    idx_next = torch.multinomial(probs, num_samples=1)  # Shape: (B, 1)
+    return decode(idx_next.tolist()[0])
+
+prompt = "e4 e5 "
+for _ in range(10):
+    prompt += getNext(prompt)
+
+print(prompt)
