@@ -5,26 +5,16 @@ const tf = require('@tensorflow/tfjs');
 
 async function main() {
     try {
-        console.log(`model loaded`);
         // create a new session and load the specific model.
-        //
-        // the model in this example contains a single MatMul node
-        // it has 2 inputs: 'a'(float32, 3x4) and 'b'(float32, 4x3)
-        // it has 1 output: 'c'(float32, 3x3)
+        document.write(`Loading model...`);
         const session = await ort.InferenceSession.create('./chessgpt.onnx');
-
-        document.write(`inference`);
-
-        console.log(session);
-        console.log(ort);
-        ort.env.debug = true;
-
-        console.log(ort.registerBackend.name);
+        document.write(`Model loaded`);
+        //        ort.env.debug = true;
 
         const inputNames = session.inputNames;
         const outputNames = session.outputNames;
 
-        console.log("Output:")
+        console.log("Model api:")
         console.log(`inputNames:${inputNames}`);
         console.log(`outputNames:${outputNames}`);
 
@@ -51,11 +41,22 @@ async function main() {
         console.log('shape:', logits.shape);
         logits.print();
 
-        // TF
+        const lastRow = logits.slice([0, 0, 0], [1, 1, 29]); // Shape: [1, 1, 29]
+        console.log('lastRow.shape:', lastRow.shape)
+        const shapedLastRow=lastRow.reshape([29])
+        shapedLastRow.print()
+        shapedLastRow.print();
 
-               const m=tf.softmax(logits,-1);
-              console.log(m)
+        // TensorflowJS to sample from the last row of the logits
 
+        // Apply softmax to get probabilities
+        const softmax = tf.softmax(shapedLastRow, -1); // Shape: [B, C]
+
+        softmax.print();
+        // Sample from the distribution
+        const idx_next = tf.multinomial(softmax, 1); // Shape: [B, 1]
+
+        idx_next.print()
         // read from results
         //        const dataC = results.c.data;
         //        document.write(`data of result tensor 'c': ${dataC}`);
