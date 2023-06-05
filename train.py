@@ -234,4 +234,4 @@ print(trainloss)
  
 
 torch.save(model.state_dict(), "model/chessgpt.pt")
-torch.onnx.export(model, context, "model/chessgpt.onnx", verbose=False)
+torch.onnx.export(model, context, "model/chessgpt.onnx", verbose=False,input_names=["context"],output_names=["logits"])

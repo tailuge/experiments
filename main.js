@@ -1,5 +1,7 @@
 
 const ort = require('onnxruntime-web');
+const tf = require('@tensorflow/tfjs');
+
 
 async function main() {
     try {
@@ -29,20 +31,34 @@ async function main() {
         const blockSize = 32
         const dataA = new BigInt64Array(blockSize);
         console.log(dataA)
-        const tensorA = new ort.Tensor('int64', dataA, [1,32]);
+        const tensorA = new ort.Tensor('int64', dataA, [1, 32]);
 
+        console.log("Input:")
         console.log("TensorA:");
         console.log(tensorA);
         // prepare feeds. use model input names as keys.
-        const feeds = { 'input.1': tensorA };
+        const feeds = { 'context': tensorA };
         console.log(feeds);
         // feed inputs and run
         const results = await session.run(feeds);
 
-        console.log(results)
+        console.log("Model Output:")
+  //      console.log(JSON.stringify(results))
+        const outputArray = results.logits;
+        const outputTensorJs = tf.tensor(outputArray.data)
+        console.log(`outputTensorJs ${outputTensorJs}`)
+        const logits = outputTensorJs.reshape([1, 32, 29])
+        console.log('shape:', logits.shape);
+        logits.print();
+
+        // TF
+
+               const m=tf.softmax(logits,-1);
+              console.log(m)
+
         // read from results
-//        const dataC = results.c.data;
-//        document.write(`data of result tensor 'c': ${dataC}`);
+        //        const dataC = results.c.data;
+        //        document.write(`data of result tensor 'c': ${dataC}`);
 
     } catch (e) {
         console.log(`failed inference ONNX model: ${e}.`);
