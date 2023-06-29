@@ -37,6 +37,8 @@ print("output type", output_type)
 
 
 def getNext(prompt):
+    length = len(prompt)
+    print(length)
     str = prompt.rjust(32)[:32]
     strEnc = encode(str)
 
@@ -51,8 +53,8 @@ def getNext(prompt):
 
     output = output[0]  # Extract the output from the list
 
-    # Focus only on the last time step
-    logits = output[:, -1, :]  # Shape: (B, C)
+    # Focus only on the relavant time step
+    logits = output[:, length+1, :]  # Shape: (B, C)
 
     # Apply softmax to get probabilities
     probs = F.softmax(torch.tensor(logits), dim=-1)  # Shape: (B, C)
