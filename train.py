@@ -6,8 +6,8 @@ import onnx
 # hyperparameters
 batch_size = 16 # how many independent sequences will we process in parallel?
 block_size = 32 # what is the maximum context length for predictions?
-max_iters = 10
-eval_interval = 5
+max_iters = 50
+eval_interval = 10
 learning_rate = 0.01
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 eval_iters = 50
@@ -34,7 +34,7 @@ print(vocab_size)
 stoi = { ch:i for i,ch in enumerate(chars) }
 itos = { i:ch for i,ch in enumerate(chars) }
 encode = lambda s: [stoi[c] for c in s] # encoder: take a string, output a list of integers
-decode = lambda l: ''.join([itos[i] for i in l]) # decoder: take a list of integers, output a string
+decode = lambda x: ''.join([itos[i] for i in x]) # decoder: take a list of integers, output a string
 
 # Train and test splits
 data = torch.tensor(encode(text), dtype=torch.long)
