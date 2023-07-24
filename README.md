@@ -1,13 +1,13 @@
 # Experiments
 
-## ChessGPT
-
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/tailuge/experiments/blob/master/ChessGPT.ipynb)
 [![Open in Gitpod](https://img.shields.io/badge/Gitpod-Open%20in%20Gitpod-%230092CF.svg)](https://gitpod.io/#https://github.com/tailuge/experiments)
 [![CodeFactor](https://www.codefactor.io/repository/github/tailuge/experiments/badge)](https://www.codefactor.io/repository/github/tailuge/experiments)
 
-* Tranformer decoder network applied to PGN chess moves
-* Trained from [lichess.org](lichess.org) games
+## ChessGPT
+
+* Tranformer decoder network applied to PGN chess move sequences
+* Trained from human [lichess.org](lichess.org) games
 * Inference using WebAssembly ONNX model in browser
 
 If large language models internalise the world in an effort to predict the next word
@@ -33,7 +33,7 @@ yarn markdownlint
 
 ### Setup
 
-Get games from [lichess.org](lichess.org)
+Get a few thousand games from [lichess.org](lichess.org) database and sanitize
 
 ```shell
 yarn fetch
@@ -41,7 +41,8 @@ yarn fetch
 
 ### Train
 
-Python
+Model is trained using python with ``pip`` installed
+dependencies ``numpy``, ``torch`` and ``onnx`` (see gitpod.yml)
 
 ```shell
 yarn train
@@ -56,7 +57,7 @@ yarn dev
 yarn serve
 ```
 
-### ToDo
+### Plans
 
 * add harness to produce legal next move by retrying or
     selecting random legal move if no legal move produced by model.
