@@ -28,7 +28,7 @@ module.exports = () => {
         message: /homepage/,
       },
       /warning from compiler/,
-      (warning) => true,
+      (_) => true,
     ],
     target: ['web'],
     entry: path.resolve(__dirname, 'main.js'),
