@@ -6,7 +6,7 @@
 
 ## ChessGPT
 
-* Tranformer decoder network applied to PGN chess move sequences
+* Tranformer decoder neural network applied to PGN chess move sequences
 * Trained from human [lichess.org](lichess.org) games
 * Inference using WebAssembly ONNX model in browser
 
