@@ -1,49 +1,7 @@
 const ort = require("onnxruntime-web")
 const tf = require("@tensorflow/tfjs")
-
-const chars = [
-  "\n",
-  " ",
-  "#",
-  "+",
-  "-",
-  "1",
-  "2",
-  "3",
-  "4",
-  "5",
-  "6",
-  "7",
-  "8",
-  "=",
-  "B",
-  "K",
-  "N",
-  "O",
-  "Q",
-  "R",
-  "a",
-  "b",
-  "c",
-  "d",
-  "e",
-  "f",
-  "g",
-  "h",
-  "x",
-]
-function encode(c) {
-  return chars.indexOf(c)
-}
-function decode(n) {
-  return chars[n]
-}
-function encodeString(str) {
-  return str.split("").map(encode)
-}
-function decodeArray(arr) {
-  return arr.map(decode).join("")
-}
+//const encdec = require("./encode.js")
+import { encodeString, decodeArray } from "./encode"
 async function main() {
   try {
     // create a new session and load the specific model.

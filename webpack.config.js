@@ -1,14 +1,14 @@
-const path = require('path');
-const CopyPlugin = require("copy-webpack-plugin");
+const path = require("path")
+const CopyPlugin = require("copy-webpack-plugin")
 
 module.exports = () => {
   return {
     devServer: {
       static: {
-        directory: path.join(__dirname, 'dist'),
+        directory: path.join(__dirname, "dist"),
       },
-      allowedHosts: ['.gitpod.io'],
-      host: '0.0.0.0',
+      allowedHosts: [".gitpod.io"],
+      host: "0.0.0.0",
       compress: true,
       port: 8080,
       client: {
@@ -17,7 +17,7 @@ module.exports = () => {
           errors: true,
           warnings: false,
         },
-      }
+      },
     },
     ignoreWarnings: [
       {
@@ -30,22 +30,27 @@ module.exports = () => {
       /warning from compiler/,
       () => true,
     ],
-    target: ['web'],
-    entry: path.resolve(__dirname, 'main.js'),
+    target: ["web"],
+    entry: path.resolve(__dirname, "./src/js/main.js"),
     output: {
-      path: path.resolve(__dirname, 'dist'),
-      filename: 'bundle.min.js',
+      path: path.resolve(__dirname, "dist"),
+      filename: "bundle.min.js",
       library: {
-        type: 'umd'
-      }
+        type: "umd",
+      },
     },
-    plugins: [new CopyPlugin({
-      // Use copy plugin to copy *.wasm and model to output folder.
-      patterns: [
-        { from: 'node_modules/onnxruntime-web/dist/*.wasm', to: '[name][ext]' },
-        { from: './model/chessgpt.onnx', to: '[name][ext]' }]
-    })],
-    mode: 'production',
-
+    plugins: [
+      new CopyPlugin({
+        // Use copy plugin to copy *.wasm and model to output folder.
+        patterns: [
+          {
+            from: "node_modules/onnxruntime-web/dist/*.wasm",
+            to: "[name][ext]",
+          },
+          { from: "./model/chessgpt.onnx", to: "[name][ext]" },
+        ],
+      }),
+    ],
+    mode: "production",
   }
-};
+}

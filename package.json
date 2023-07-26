@@ -12,14 +12,14 @@
         "test": "jest --verbose",
         "coverage": "jest --coverage --coverageReporters json",
         "dev": "webpack ",
-        "prettify": "prettier --write --no-semi ./dist/*.html main.js",
-        "black": "black *.py",
+        "prettify": "prettier --write --no-semi ./dist/*.html ./src/js/*.js",
+        "black": "black ./src/python/*.py",
         "markdownlint": "npx markdownlint-cli2 README.md --fix",
         "serve": "webpack serve --client-web-socket-url $(gp url 8080 | sed 's/http/ws/' | sed 's#$#/ws#')",
         "deps": "npx yarn-check --skip-unused",
-        "fetch": "./fetch.sh",
-        "shellcheck": "shellcheck *.sh",
-        "train": "python train.py"
+        "fetch": "./src/scripts/fetch.sh",
+        "shellcheck": "shellcheck ./src/scripts/*.sh",
+        "train": "python ./src/python/train.py"
     },
     "dependencies": {
         "@tensorflow/tfjs": "^4.9.0",
