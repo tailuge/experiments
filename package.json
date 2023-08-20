@@ -22,13 +22,13 @@
         "train": "python ./src/python/train.py"
     },
     "dependencies": {
-        "@tensorflow/tfjs": "^4.9.0",
+        "@tensorflow/tfjs": "^4.10.0",
         "onnxruntime-web": "^1.15.1"
     },
     "devDependencies": {
         "copy-webpack-plugin": "^11.0.0",
         "node-notifier": "^10.0.1",
-        "prettier": "^3.0.0",
+        "prettier": "^3.0.2",
         "ts-jest": "^29.1.1",
         "ts-loader": "^9.4.4",
         "ts-node": "^10.9.1",
