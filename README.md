@@ -33,6 +33,12 @@ yarn markdownlint
 
 ### Setup
 
+Create a python virtual environment and install dependencies
+
+```shell
+yarn setup
+```
+
 Get a few thousand games from [lichess.org](lichess.org) database and sanitize
 
 ```shell
@@ -42,7 +48,7 @@ yarn fetch
 ### Train
 
 Model is trained using python with ``pip`` installed
-dependencies ``numpy``, ``torch`` and ``onnx`` (see gitpod.yml)
+dependencies ``numpy``, ``torch`` and ``onnx`` (see requirements.txt)
 
 ```shell
 yarn train

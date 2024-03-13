@@ -21,7 +21,7 @@
         "fetch": "./src/scripts/fetch.sh",
         "setup": "./src/scripts/setup.sh",
         "shellcheck": "shellcheck ./src/scripts/*.sh",
-        "train": "python ./src/python/train.py"
+        "train": "./src/scripts/train.sh"
     },
     "dependencies": {
         "@tensorflow/tfjs": "^4.17.0",
