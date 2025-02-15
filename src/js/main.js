@@ -26,7 +26,7 @@ async function main() {
 
     const blockSize = 32
     const dataA = new BigInt64Array(blockSize)
-    encoded.forEach((x,i)=>dataA[i]=BigInt(x))
+    encoded.forEach((x, i) => (dataA[i] = BigInt(x)))
     console.log(dataA)
     const tensorA = new ort.Tensor("int64", dataA, [1, 32])
 
@@ -64,7 +64,7 @@ async function main() {
 
     idx_next.print()
 
-    const tensorData = idx_next.dataSync();
+    const tensorData = idx_next.dataSync()
     console.log(tensorData)
     var a = [tensorData[0]]
     console.log(a)
@@ -72,7 +72,7 @@ async function main() {
     // read from results
     //        const dataC = results.c.data;
     //        document.write(`data of result tensor 'c': ${dataC}`);
-    console.log(generateNextFrom("e4 e5 ",session))
+    console.log(generateNextFrom("e4 e5 ", session))
   } catch (e) {
     console.log(`failed inference ONNX model: ${e}.`)
     document.write(`failed inference ONNX model: ${e}.`)
