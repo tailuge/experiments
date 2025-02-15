@@ -7,14 +7,30 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
     <!-- Load Chart.js for loss graphing -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      .spinner {
+        display: none;
+        width: 20px;
+        height: 20px;
+        margin-left: 10px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        display: inline-block;
+        vertical-align: middle;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
   </head>
   <body>
     <h3>Training Data (one sample per line):</h3>
     <textarea id="trainingData" rows="5" cols="80">
-ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
-abcdefghijklmnopqrstuvwxyz
-1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
-ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyztABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.
+abcdefghijklmnopqrstuvwxyz.
+zyxwvutsrqponmlkjihgfedcba.
     </textarea>
     <br />
 
@@ -27,7 +43,8 @@ ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyztABCDEFGHIJKLMNOPQRSTUVWXYZa
       max="50"
       style="width: 50px"
     />
-    <button onclick="trainModel()">Train Model</button>
+    <button id="trainButton" onclick="trainModel()">Train Model</button>
+    <span id="trainSpinner" class="spinner" style="display: none;"></span>
 
     <h3>Inference:</h3>
     <input type="text" id="inputText" value="abc" />
@@ -48,6 +65,14 @@ ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyztABCDEFGHIJKLMNOPQRSTUVWXYZa
       let model
       let globalEpochCounter = 0 // Total epochs trained across sessions.
       let lossChart = null // Will hold our Chart.js chart instance.
+
+      model = createModel()
+          logWithTime("compile model")
+
+          model.compile({
+            optimizer: tf.train.adam(),
+            loss: "sparseCategoricalCrossentropy",
+          })
 
       // --- Initialize Chart.js Loss Graph ---
       function initializeLossChart() {
@@ -152,35 +177,41 @@ ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyztABCDEFGHIJKLMNOPQRSTUVWXYZa
 
       // --- Training Function ---
       async function trainModel() {
-        // Clear previous training status (text) but preserve the loss chart.
+        const trainButton = document.getElementById('trainButton');
+        const spinner = document.getElementById('trainSpinner');
+        
+        // Disable button and show spinner
+        trainButton.disabled = true;
+        spinner.style.display = 'inline-block';
+        
+        // Clear previous training status
         document.getElementById("trainingStatus").textContent = ""
-        const { xs, ys } = prepareData()
+        await Promise.resolve();
+        try {
+          const { xs, ys } = prepareData()
 
-        model = createModel()
-        logWithTime("compile model")
+          logWithTime("fit")
 
-        model.compile({
-          optimizer: tf.train.adam(),
-          loss: "sparseCategoricalCrossentropy",
-        })
-
-        logWithTime("fit")
-
-        const epochs = parseInt(document.getElementById("epochs").value, 10)
-        await model.fit(xs, ys, {
-          epochs: epochs,
-          callbacks: {
-            onEpochEnd: async (epoch, logs) => {
-              globalEpochCounter++
-              document.getElementById("trainingStatus").textContent =
-                `Epoch ${globalEpochCounter}: loss = ${logs.loss.toFixed(4)}\n`
-              updateLossChart(globalEpochCounter, logs.loss)
-              await tf.nextFrame() // Allow the UI to update.
+          const epochs = parseInt(document.getElementById("epochs").value, 10)
+          await model.fit(xs, ys, {
+            epochs: epochs,
+            callbacks: {
+              onEpochEnd: async (epoch, logs) => {
+                globalEpochCounter++
+                document.getElementById("trainingStatus").textContent =
+                  `Epoch ${globalEpochCounter}: loss = ${logs.loss.toFixed(4)}\n`
+                updateLossChart(globalEpochCounter, logs.loss)
+                await tf.nextFrame()
+              },
             },
-          },
-        })
-        xs.dispose()
-        ys.dispose()
+          })
+          xs.dispose()
+          ys.dispose()
+        } finally {
+          // Re-enable button and hide spinner
+          trainButton.disabled = false;
+          spinner.style.display = 'none';
+        }
       }
 
       // --- Inference Function ---
