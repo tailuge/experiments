@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitHub Repo jsTree with Multi-Selection</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/themes/default/style.min.css" />
+</head>
+<body>
+  <h1>GitHub Repository File Tree</h1>
+  <label for="repo-url">GitHub Repo URL:</label>
+  <input type="text" id="repo-url" placeholder="https://github.com/owner/repo" />
+  <button onclick="loadRepo()">Load Repository</button>
+  <div id="tree"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/jstree.min.js"></script>
+  <script>
+    // Function to fetch repository contents from GitHub API
+    async function fetchRepoContents(owner, repo, path = "") {
+      const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch repository contents: ${response.statusText}`);
+      }
+      return await response.json();
+    }
+
+    // Function to convert GitHub API response to jsTree format
+    function convertToJsTree(data) {
+      return data.map(item => ({
+        id: item.path,
+        text: item.name,
+        children: item.type === "dir",
+        type: item.type,
+      }));
+    }
+
+    // Function to recursively build the tree structure
+    async function buildTree(owner, repo, node) {
+      const contents = await fetchRepoContents(owner, repo, node.id);
+      const children = convertToJsTree(contents);
+      for (const child of children) {
+        if (child.type === "dir") {
+          child.children = await buildTree(owner, repo, child);
+        }
+      }
+      return children;
+    }
+
+    // Function to load the repository and render the tree
+    async function loadRepo() {
+      const repoUrl = document.getElementById("repo-url").value;
+      const [owner, repo] = repoUrl.replace("https://github.com/", "").split("/");
+
+      try {
+        // Fetch root directory
+        const rootContents = await fetchRepoContents(owner, repo);
+        const rootNodes = convertToJsTree(rootContents);
+
+        // Build the full tree structure
+        const treeData = await Promise.all(
+          rootNodes.map(async node => {
+            if (node.type === "dir") {
+              node.children = await buildTree(owner, repo, node);
+            }
+            return node;
+          })
+        );
+
+        // Render the tree using jsTree
+        $("#tree").jstree({
+          core: {
+            data: treeData,
+            multiple: true, // Allow multiple selections
+          },
+          plugins: ["checkbox", "types"], // Enable checkbox plugin
+          types: {
+            dir: {
+              icon: "jstree-folder",
+            },
+            file: {
+              icon: "jstree-file",
+            },
+          },
+          checkbox: {
+            keep_selected_style: false, // Allow Ctrl/Cmd + click to select multiple nodes
+          },
+        });
+
+        // Log selected nodes when the selection changes
+        $("#tree").on("changed.jstree", function (e, data) {
+          const selectedNodes = data.instance.get_selected();
+          console.log("Selected Nodes:", selectedNodes);
+        });
+      } catch (error) {
+        console.error("Error loading repository:", error);
+        alert("Failed to load repository. Please check the URL and try again.");
+      }
+    }
+  </script>
+</body>
+</html>
