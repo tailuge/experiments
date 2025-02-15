@@ -35,7 +35,7 @@ ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyztABCDEFGHIJKLMNOPQRSTUVWXYZa
 
     <script>
       // --- Global Constants & Variables ---
-      const SEQ_LENGTH = 64;      // Context window of 64 characters
+      const SEQ_LENGTH = 32;      // Context window of 64 characters
       const VOCAB_SIZE = 128;     // ASCII: characters 0–127
 
       let model;
@@ -77,23 +77,26 @@ ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyztABCDEFGHIJKLMNOPQRSTUVWXYZa
 
       // --- Model Definition ---
       function createModel() {
+        logWithTime("create model")
         const model = tf.sequential();
         model.add(tf.layers.embedding({
           inputDim: VOCAB_SIZE,
           outputDim: 8,
           inputLength: SEQ_LENGTH
         }));
-        model.add(tf.layers.lstm({ units: 8 }));
+        model.add(tf.layers.lstm({ units: 4 }));
         model.add(tf.layers.dense({
           units: VOCAB_SIZE,
           activation: "softmax"  // Predicts a probability distribution over ASCII tokens.
         }));
+        logWithTime("Model created")
         return model;
       }
 
       // --- Data Preparation ---
       // For each training sample (one per line), slide a window of SEQ_LENGTH and use the following character as the target.
       function prepareData() {
+        logWithTime("prepare data")
         const rawData = document.getElementById('trainingData').value
                           .split('\n')
                           .map(line => line.trim())
@@ -120,6 +123,7 @@ ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyztABCDEFGHIJKLMNOPQRSTUVWXYZa
         const xs = tf.tensor2d(xsBuffer, [xsBuffer.length, SEQ_LENGTH], 'int32');
         // Convert labels to float32 to avoid type errors.
         const ys = tf.tensor1d(ysBuffer, 'int32').toFloat();
+        logWithTime("data prepared")
         return { xs, ys };
       }
 
@@ -137,10 +141,14 @@ ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyztABCDEFGHIJKLMNOPQRSTUVWXYZa
         const { xs, ys } = prepareData();
 
         model = createModel();
+        logWithTime("compile model")
+
         model.compile({
           optimizer: tf.train.adam(),
           loss: 'sparseCategoricalCrossentropy'
         });
+
+        logWithTime("fit")
 
         const epochs = parseInt(document.getElementById('epochs').value, 10);
         await model.fit(xs, ys, {
@@ -148,7 +156,7 @@ ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyztABCDEFGHIJKLMNOPQRSTUVWXYZa
           callbacks: {
             onEpochEnd: async (epoch, logs) => {
               globalEpochCounter++;
-              document.getElementById('trainingStatus').textContent += 
+              document.getElementById('trainingStatus').textContent = 
                 `Epoch ${globalEpochCounter}: loss = ${logs.loss.toFixed(4)}\n`;
               updateLossChart(globalEpochCounter, logs.loss);
               await tf.nextFrame(); // Allow the UI to update.
@@ -189,6 +197,13 @@ ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyztABCDEFGHIJKLMNOPQRSTUVWXYZa
         }
         document.getElementById('result').textContent = generated;
       }
+
+      function logWithTime(message) {
+  const now = new Date();
+  const seconds = now.getSeconds().toString().padStart(2, '0'); // Pad with leading zero if needed
+  const milliseconds = now.getMilliseconds().toString().padStart(3, '0'); //Pad with leading zero if needed
+  console.log(`[${seconds}.${milliseconds}] ${message}`);
+}
     </script>
   </body>
 </html>
