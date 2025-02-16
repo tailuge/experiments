@@ -113,7 +113,7 @@
 
               if (!model) {
                   const embeddingDim = 8;
-                  const rnnUnits = 16;
+                  const rnnUnits = 8;
                   model = buildModel(vocabSize, embeddingDim, rnnUnits);
                    model.compile({
                       optimizer: tf.train.adam(0.01),
