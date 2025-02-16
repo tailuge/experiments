@@ -50,8 +50,6 @@
           let vocabSize;
           let allLosses = [];
           
-          // Remove the initChart and updateChart functions as they're now in graphing.js
-
           function buildModel(vocabSize, embeddingDim, rnnUnits) {
               const model = tf.sequential();
               model.add(tf.layers.embedding({
