@@ -3,6 +3,8 @@
 <head>
     <title>Transformer Training Demo</title>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="graphing.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -19,16 +21,18 @@
         <div>
             <button id="trainButton">Train</button>
             Epochs: <input type="number" id="epochsInput" value="10">
+        </div>
+        <div>
             <button id="inferButton">Infer</button>
             Prefix: <input type="text" id="prefixInput" value="1. e4">
-            <span id="inferenceOutput"></span>
         </div>
+        <div id="inferenceOutput"></div>
         <div>
             <button id="saveButton">Save Model</button>
             <button id="loadButton">Load Model</button>
         </div>
 
-        <canvas id="lossCanvas"></canvas>
+        <canvas id="lossCanvas" style="width: 600px; height: 400px;"></canvas>
         <script>
           const trainButton = document.getElementById('trainButton');
           const inferButton = document.getElementById('inferButton');
@@ -40,14 +44,13 @@
           const saveButton = document.getElementById('saveButton');
           const loadButton = document.getElementById('loadButton');
 
-
           let model;
           let charToIndex;
           let indexToChar;
           let vocabSize;
-          let allLosses = []; // Store all losses across multiple training sessions
-          const minEpochsForPlot = 100;
-
+          let allLosses = [];
+          
+          // Remove the initChart and updateChart functions as they're now in graphing.js
 
           function buildModel(vocabSize, embeddingDim, rnnUnits) {
               const model = tf.sequential();
@@ -102,6 +105,9 @@
 
 
           async function trainModel(epochs) {
+              if (!lossChart) {
+                  initChart(lossCanvas);
+              }
               const text = inputText.value;
               const sequences = preprocessData(text);
               const seqLength = 10;
@@ -127,7 +133,7 @@
                         onEpochEnd: async (epoch, logs) => {
                             console.log(`Epoch ${epoch + 1}: loss = ${logs.loss}`);
                             allLosses.push(logs.loss);
-                            plotLoss(allLosses);
+                            updateChart(allLosses);
                         }
                     }
                   });
@@ -135,38 +141,6 @@
               input.dispose();
               target.dispose();
           }
-
-
-          function plotLoss(losses) {
-            const ctx = lossCanvas.getContext('2d');
-            ctx.clearRect(0, 0, lossCanvas.width, lossCanvas.height);
-
-            if (losses.length < 2) {
-                return;
-            }
-
-            const logLosses = losses.map(loss => Math.log(loss));  // Calculate log loss
-
-            const minLogLoss = Math.min(...logLosses);
-            const maxLogLoss = Math.max(...logLosses);
-
-             // Ensure at least minEpochsForPlot are shown
-            const numEpochs = Math.max(losses.length, minEpochsForPlot);
-            const scaleX = (lossCanvas.width - 20) / (numEpochs -1);
-            const scaleY = (lossCanvas.height - 20) / (maxLogLoss - minLogLoss);
-
-
-            ctx.beginPath();
-            ctx.moveTo(10, lossCanvas.height - 10 - (logLosses[0] - minLogLoss) * scaleY);
-
-            for (let i = 1; i < losses.length; i++) {
-                 const x = 10 + i * scaleX;
-                const y = lossCanvas.height - 10 - (logLosses[i] - minLogLoss) * scaleY;
-                ctx.lineTo(x, y);
-            }
-            ctx.stroke();
-        }
-
 
 
           async function infer(prefix, numGenerate = 20) {
