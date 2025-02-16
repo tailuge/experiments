@@ -18,7 +18,8 @@ function initChart(canvasElement) {
             animation: false,
             scales: {
                 y: {
-                    min: 0,
+                    type: 'logarithmic',
+                    min: 0.25,
                     max: 5,
                     title: {
                         display: true,

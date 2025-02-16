@@ -22,3 +22,12 @@ button {
     width: 100%;
     height: 300px;
 }
+
+#inferenceOutput {
+    font-family: monospace;
+    background-color: #f0f0f0;
+    padding: 10px;
+    border-radius: 4px;
+    margin: 10px 0;
+    white-space: pre-wrap;
+}
