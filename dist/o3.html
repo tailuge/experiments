@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Transformer Training Demo</title>
+  <!-- TensorFlow.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@latest"></script>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    textarea { width: 100%; margin-bottom: 10px; }
+    canvas { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Transformer Training Demo</h1>
+  <p>Enter sample text (must be at least 11 characters):</p>
+  <textarea id="sampleText" rows="4">This is a sample text for transformer training.</textarea>
+  <br>
+  <button id="trainButton">Train One Epoch</button>
+  <canvas id="lossChart" width="600" height="400"></canvas>
+
+  <script>
+    // --- Parameters ---
+    const sequenceLength = 10;  // input sequence length
+    const embedDim = 16;        // embedding dimension
+    const numHeads = 2;         // number of attention heads
+    const ffDim = 32;           // feed-forward inner layer size
+    let model;
+    const lossHistory = [];
+
+    // --- Helper: Positional Encoding ---
+    function getPositionalEncoding(seqLen, dModel) {
+      // For simplicity, create a basic linear positional encoding
+      const pos = tf.range(0, seqLen, 1, 'float32'); // [0, 1, 2, ..., seqLen-1]
+      const posExpanded = pos.expandDims(1);          // shape: [seqLen, 1]
+      const divTerm = tf.range(0, dModel, 1, 'float32').expandDims(0); // [1, dModel]
+      // Normalize positions by dividing by seqLen (a simple substitute for sine/cosine)
+      const posEncoding = posExpanded.div(tf.scalar(seqLen));
+      return posEncoding.tile([1, dModel]).expandDims(0); // shape: [1, seqLen, dModel]
+    }
+
+    // --- Create Transformer Model ---
+    function createTransformerModel(vocabSize, seqLen, embedDim, numHeads, ffDim) {
+      // Input layer: sequence of token indices
+      const input = tf.input({shape: [seqLen]});
+      
+      // Token embedding
+      const tokenEmb = tf.layers.embedding({inputDim: vocabSize, outputDim: embedDim}).apply(input);
+      
+      // Add positional encoding
+      const posEncoding = getPositionalEncoding(seqLen, embedDim);
+      const added = tf.layers.lambda({
+  function: (inputs) => {
+    // Compute constant positional encoding inside the lambda so it becomes symbolic.
+    const posEnc = getPositionalEncoding(seqLen, embedDim);
+    return inputs.add(posEnc);
+  }
+}).apply(tokenEmb);
+      
+      // Multi-head self-attention
+      const attnOutput = tf.layers.multiHeadAttention({
+        numHeads: numHeads, keyDim: embedDim
+      }).apply([added, added, added]);
+      const attnAdded = tf.layers.add().apply([added, attnOutput]);
+      const attnNorm = tf.layers.layerNormalization().apply(attnAdded);
+      
+      // Feed-forward network
+      const ff1 = tf.layers.dense({units: ffDim, activation: 'relu'}).apply(attnNorm);
+      const ff2 = tf.layers.dense({units: embedDim}).apply(ff1);
+      const ffAdded = tf.layers.add().apply([attnNorm, ff2]);
+      const ffNorm = tf.layers.layerNormalization().apply(ffAdded);
+      
+      // For simplicity, use the output corresponding to the last time step
+      const lastToken = tf.layers.lambda({
+        function: x => x.slice([0, seqLen - 1, 0], [-1, 1, -1])
+      }).apply(ffNorm);
+      const flatten = tf.layers.flatten().apply(lastToken);
+      // Final projection to vocabulary distribution (softmax output)
+      const output = tf.layers.dense({units: vocabSize, activation: 'softmax'}).apply(flatten);
+      
+      // Build and compile model
+      const model = tf.model({inputs: input, outputs: output});
+      model.compile({
+        optimizer: tf.train.adam(),
+        loss: 'sparseCategoricalCrossentropy'
+      });
+      return model;
+    }
+
+    // --- Prepare Data from Sample Text ---
+    function prepareData(text, seqLen) {
+      // Build vocabulary (character-level)
+      const chars = Array.from(new Set(text));
+      const vocabSize = chars.length;
+      const charToIndex = {};
+      chars.forEach((ch, i) => { charToIndex[ch] = i; });
+      
+      // Convert text into array of indices
+      const indices = Array.from(text).map(ch => charToIndex[ch]);
+      const inputs = [];
+      const labels = [];
+      // Create sliding windows of length seqLen, with the target as the next token
+      for (let i = 0; i < indices.length - seqLen; i++) {
+        inputs.push(indices.slice(i, i + seqLen));
+        labels.push(indices[i + seqLen]);
+      }
+      const xs = tf.tensor2d(inputs, [inputs.length, seqLen], 'int32');
+      const ys = tf.tensor1d(labels, 'int32');
+      return { xs, ys, vocabSize, charToIndex, indexToChar: chars };
+    }
+
+    // --- Chart.js Setup for Plotting Loss vs. Epoch ---
+    const ctx = document.getElementById('lossChart').getContext('2d');
+    const lossChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Loss',
+          data: [],
+          borderColor: 'rgba(75, 192, 192, 1)',
+          fill: false,
+        }]
+      },
+      options: {
+        scales: {
+          x: { title: { display: true, text: 'Epoch' } },
+          y: { title: { display: true, text: 'Loss' } }
+        }
+      }
+    });
+
+    // --- Training Loop: Train One Epoch ---
+    async function trainOneEpoch() {
+      const sampleText = document.getElementById('sampleText').value;
+      if (sampleText.length < sequenceLength + 1) {
+        alert("Please enter text with length at least " + (sequenceLength + 1));
+        return;
+      }
+      const { xs, ys, vocabSize } = prepareData(sampleText, sequenceLength);
+      
+      // (Re)create model if necessary
+      if (!model || model.inputs[0].shape[1] !== sequenceLength || model.outputs[0].shape[1] !== vocabSize) {
+        model = createTransformerModel(vocabSize, sequenceLength, embedDim, numHeads, ffDim);
+      }
+      // Train for 1 epoch
+      const history = await model.fit(xs, ys, { epochs: 1, batchSize: 16 });
+      const loss = history.history.loss[0];
+      lossHistory.push(loss);
+      // Update Chart.js plot
+      lossChart.data.labels.push(lossHistory.length);
+      lossChart.data.datasets[0].data.push(loss);
+      lossChart.update();
+      xs.dispose();
+      ys.dispose();
+    }
+
+    // --- Attach event listener ---
+    document.getElementById('trainButton').addEventListener('click', trainOneEpoch);
+  </script>
+</body>
+</html>
