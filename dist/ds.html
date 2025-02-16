@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Transformer Training Demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h2>Transformer Training Demo</h2>
+    <div>
+        <p>Enter training sequences (one per line):</p>
+        <textarea id="trainingData" rows="5" cols="50"></textarea>
+    </div>
+    <button onclick="startTraining()">Train</button>
+    <div>
+        <canvas id="lossChart" width="400" height="200"></canvas>
+    </div>
+    <div id="status"></div>
+
+    <script>
+        let model;
+        let chart = null;
+        let lossHistory = [];
+
+        function createModel(vocabSize, maxLen) {
+            const dModel = 64;
+            const numHeads = 4;
+            
+            const input = tf.input({ shape: [maxLen] });
+            
+            // Token embeddings
+            const tokenEmbedding = tf.layers.embedding({
+                inputDim: vocabSize,
+                outputDim: dModel
+            }).apply(input);
+            
+            // Position embeddings (symbolic)
+            const positionInput = tf.input({ shape: [maxLen] });
+            const positionEmbedding = tf.layers.embedding({
+                inputDim: maxLen,
+                outputDim: dModel
+            }).apply(positionInput);
+            
+            // Add token and position embeddings
+            const embeddings = tf.layers.add().apply([tokenEmbedding, positionEmbedding]);
+            
+            // Transformer layer with causal attention
+            const attention = tf.layers.multiHeadAttention({
+                numHeads: numHeads,
+                keyDim: dModel / numHeads,
+                valueDim: dModel / numHeads,
+                causal: true
+            }).apply([embeddings, embeddings]);
+            
+            // Add & Norm
+            const added = tf.layers.add().apply([embeddings, attention]);
+            const norm1 = tf.layers.layerNormalization().apply(added);
+            
+            // Feed Forward
+            const ff = tf.layers.dense({ units: dModel * 4, activation: 'relu' }).apply(norm1);
+            const ffOut = tf.layers.dense({ units: dModel }).apply(ff);
+            
+            // Add & Norm
+            const added2 = tf.layers.add().apply([norm1, ffOut]);
+            const norm2 = tf.layers.layerNormalization().apply(added2);
+            
+            // Output
+            const output = tf.layers.dense({
+                units: vocabSize,
+                activation: 'softmax'
+            }).apply(norm2);
+            
+            return tf.model({ inputs: [input, positionInput], outputs: output });
+        }
+
+        function processData(textLines) {
+            const chars = new Set(['<pad>']);
+            textLines.forEach(line => line.split('').forEach(c => chars.add(c)));
+            const vocab = Array.from(chars);
+            const charToIdx = Object.fromEntries(vocab.map((c, i) => [c, i]));
+            const padIdx = charToIdx['<pad>'];
+            
+            const maxLen = Math.max(...textLines.map(line => line.length));
+            const sequences = textLines.map(line => {
+                const indices = line.split('').map(c => charToIdx[c]);
+                while (indices.length < maxLen) indices.push(padIdx);
+                return indices;
+            });
+            
+            const targets = sequences.map(seq => {
+                let shifted = seq.slice(1);
+                while (shifted.length < maxLen) shifted.push(padIdx);
+                return shifted.slice(0, maxLen);
+            });
+            
+            return { inputs: sequences, targets, vocab, charToIdx, padIdx, maxLen };
+        }
+
+        async function startTraining() {
+            const textLines = document.getElementById('trainingData').value
+                .split('\n').filter(line => line.trim() !== '');
+            
+            if (textLines.length === 0) {
+                alert('Please enter some training sequences!');
+                return;
+            }
+
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = 'Processing data...';
+            
+            const { inputs, targets, vocab, padIdx, maxLen } = processData(textLines);
+            model = createModel(vocab.length, maxLen);
+            model.compile({ optimizer: tf.train.adam(0.01), loss: 'sparseCategoricalCrossentropy' });
+            
+            statusDiv.textContent = `Training model (Vocab size: ${vocab.length}, Max length: ${maxLen})...`;
+            
+            // Initialize chart
+            if (chart) chart.destroy();
+            const ctx = document.getElementById('lossChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Training Loss',
+                        data: [],
+                        borderColor: 'blue',
+                        fill: false
+                    }]
+                },
+                options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            });
+
+            const epochs = 50;
+            lossHistory = [];
+            
+            for (let epoch = 0; epoch < epochs; epoch++) {
+                let totalLoss = 0;
+                
+                for (let i = 0; i < inputs.length; i++) {
+                    const inputTensor = tf.tensor2d([inputs[i]], [1, maxLen], 'int32');
+                    const targetTensor = tf.tensor2d([targets[i]], [1, maxLen], 'int32');
+                    const positionTensor = tf.tensor2d([Array.from({ length: maxLen }, (_, i) => i)], [1, maxLen], 'int32');
+                    const mask = targetTensor.notEqual(padIdx).cast('float32');
+                    
+                    const loss = tf.tidy(() => {
+                        const logits = model.predict([inputTensor, positionTensor]);
+                        const lossPerToken = tf.losses.sparseCategoricalCrossentropy(targetTensor, logits);
+                        return lossPerToken.mul(mask).sum().div(mask.sum().add(1e-9));
+                    });
+                    
+                    totalLoss += loss.dataSync()[0];
+                    model.optimizer.minimize(() => loss);
+                    
+                    tf.dispose([inputTensor, targetTensor, positionTensor, mask, loss]);
+                }
+                
+                const avgLoss = totalLoss / inputs.length;
+                lossHistory.push(avgLoss);
+                
+                // Update chart
+                chart.data.labels.push(epoch + 1);
+                chart.data.datasets[0].data.push(avgLoss);
+                chart.update();
+                
+                statusDiv.textContent = `Epoch ${epoch + 1}/${epochs} - Loss: ${avgLoss.toFixed(4)}`;
+                await tf.nextFrame();
+            }
+            
+            statusDiv.textContent = 'Training complete!';
+        }
+    </script>
+</body>
+</html>

@@ -1,145 +1,176 @@
 <!doctype html>
 <html>
-
-<head>
-  <meta charset="UTF-8" />
-  <title>Minimal TF.js Next-Token Predictor with Loss Chart</title>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="styles.css">
-</head>
-
-<body>
-  <h3>Training Data (one sample per line):</h3>
-  <textarea id="trainingData" rows="5" cols="80">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Minimal TF.js Next-Token Predictor with Loss Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <h3>Training Data (one sample per line):</h3>
+    <textarea id="trainingData" rows="5" cols="80">
 abcdefghijklmnopqrstuvwxyz.
 zyxwvutsrqponmlkjihgfedcba.
 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
 zyxwvutsrqponmlkjihgfedcbaabcdefghijklmnopqrstuvwxyz
     </textarea>
-  <br />
+    <br />
 
-  <label for="epochs">Epochs:</label>
-  <input type="number" id="epochs" value="5" min="1" max="50" style="width: 50px" />
-  <button id="trainButton" onclick="trainModel()">Train Model</button>
-  <span id="trainSpinner" class="spinner"></span>
+    <label for="epochs">Epochs:</label>
+    <input type="number" id="epochs" value="5" min="1" max="50" style="width: 50px" />
+    <button id="trainButton" onclick="trainModel()">Train Model</button>
+    <span id="trainSpinner" class="spinner"></span>
 
-  <h3>Inference:</h3>
-  <input type="text" id="inputText" value="abc" />
-  <button onclick="runInference()">Test</button>
-  <div id="result" style="margin-top: 10px; font-weight: bold"></div>
+    <h3>Inference:</h3>
+    <input type="text" id="inputText" value="abc" />
+    <button onclick="runInference()">Test</button>
+    <div id="result" style="margin-top: 10px; font-weight: bold"></div>
 
-  <h3>Training Status:</h3>
-  <pre id="trainingStatus" style="background: #f0f0f0; padding: 5px"></pre>
+    <h3>Training Status:</h3>
+    <pre id="trainingStatus" style="background: #f0f0f0; padding: 5px"></pre>
 
-  <h3>Training Loss Graph:</h3>
-  <canvas id="lossChart" width="600" height="150"></canvas>
+    <h3>Training Loss Graph:</h3>
+    <canvas id="lossChart" width="600" height="150"></canvas>
 
-  <script src="charting.js"></script>
-  <script>
-    // --- Global Constants & Variables ---
-    const SEQ_LENGTH = 24;
-    const VOCAB_SIZE = 128;
+    <script src="charting.js"></script>
+    <script>
+      // --- Global Constants & Variables ---
+      const SEQ_LENGTH = 24;
+      const VOCAB_SIZE = 128;  // Using standard ASCII.
+      let model;
+      let globalEpochCounter = 0;
 
-    let model;
-    let globalEpochCounter = 0;
+      // --- Model Definition ---
+      function createModel() {
+        const model = tf.sequential();
+        model.add(tf.layers.embedding({
+          inputDim: VOCAB_SIZE,
+          outputDim: 8,
+          inputLength: SEQ_LENGTH,
+        }));
+        model.add(tf.layers.lstm({ units: 4 }));
+        model.add(tf.layers.dense({
+          units: VOCAB_SIZE,
+          activation: "softmax",
+        }));
+        console.log("Model created");
+        return model;
+      }
 
-    // --- Model Definition ---
-    function createModel() {
-      const model = tf.sequential();
-      model.add(tf.layers.embedding({
-        inputDim: VOCAB_SIZE,
-        outputDim: 8,
-        inputLength: SEQ_LENGTH,
-      }));
-      model.add(tf.layers.lstm({ units: 4 }));
-      model.add(tf.layers.dense({
-        units: VOCAB_SIZE,
-        activation: "softmax",
-      }));
-      console.log("Model created");
-      return model;
-    }
-
-    model = createModel();
-    console.log("Compile model");
-    model.compile({
-      optimizer: tf.train.adam(),
-      loss: "sparseCategoricalCrossentropy",
-    });
-    spinner.style.display = "none";
-
-    // --- Data Preparation ---
-    // For each training sample (one per line), slide a window of SEQ_LENGTH and use the following character as the target.
-    function prepareData() {
-      const rawData = document
-        .getElementById("trainingData")
-        .value.split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0);
-      const inputs = [];
-      const labels = [];
-      rawData.forEach((line) => {
-
-
-
+      model = createModel();
+      console.log("Compile model");
+      model.compile({
+        optimizer: tf.train.adam(),
+        loss: "sparseCategoricalCrossentropy",
       });
+      document.getElementById("trainSpinner").style.display = "none";
 
-    }
+      // --- Data Preparation ---
+      // For each training sample (one sample per line), slide a window of SEQ_LENGTH and use the following character as the target.
+      function prepareData() {
+        const rawData = document
+          .getElementById("trainingData")
+          .value.split("\n")
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0);
+        const inputs = [];
+        const labels = [];
 
-    // --- Training Function ---
-    async function trainModel() {
-      const trainButton = document.getElementById('trainButton');
-      const spinner = document.getElementById('trainSpinner');
-
-      // Disable button and show spinner.
-      trainButton.disabled = true;
-      spinner.style.display = "inline-block";
-      document.getElementById("trainingStatus").textContent = "";
-
-      try {
-        const { xs, ys } = prepareData();
-        const epochs = parseInt(document.getElementById("epochs").value, 10);
-        console.log("Starting fit");
-        await model.fit(xs, ys, {
-          epochs: epochs,
-          callbacks: {
-            onEpochEnd: async (epoch, logs) => {
-              globalEpochCounter++;
-              document.getElementById("trainingStatus").textContent =
-                `Epoch ${globalEpochCounter}: loss = ${logs.loss.toFixed(4)}\n`;
-              updateLossChart(globalEpochCounter, logs.loss);
-              await tf.nextFrame();
-            },
-          },
+        rawData.forEach((line) => {
+          if (line.length > SEQ_LENGTH) {
+            for (let i = 0; i <= line.length - SEQ_LENGTH - 1; i++) {
+              const inputWindow = line.slice(i, i + SEQ_LENGTH);
+              const targetChar = line.charAt(i + SEQ_LENGTH);
+              // Convert each character to its ASCII code.
+              const inputIndices = Array.from(inputWindow).map(ch => ch.charCodeAt(0));
+              const labelIndex = targetChar.charCodeAt(0);
+              inputs.push(inputIndices);
+              labels.push(labelIndex);
+            }
+          }
         });
-        xs.dispose();
-        ys.dispose();
-      } finally {
-        // Re-enable button and hide spinner.
-        trainButton.disabled = false;
-        spinner.style.display = "none";
+
+        if (inputs.length === 0) {
+          throw new Error("Not enough data to create training samples. Check your training data and SEQ_LENGTH.");
+        }
+
+        // Create input tensor (int32) and cast label tensor to float32.
+        const xs = tf.tensor2d(inputs, [inputs.length, SEQ_LENGTH], 'int32');
+        const ys = tf.tensor1d(labels, 'int32').toFloat(); // <-- Cast labels to float32.
+        return { xs, ys };
       }
-    }
 
-    // --- Inference Function ---
-    // This function accepts any input string (even if shorter than SEQ_LENGTH),
-    // pads it to SEQ_LENGTH, and then autoregressively predicts 10 next tokens.
-    async function runInference() {
-      if (!model) {
-        alert("Please train the model first!");
-        return;
+      // --- Training Function ---
+      async function trainModel() {
+        const trainButton = document.getElementById('trainButton');
+        const spinner = document.getElementById('trainSpinner');
+
+        trainButton.disabled = true;
+        spinner.style.display = "inline-block";
+        document.getElementById("trainingStatus").textContent = "";
+
+        try {
+          const { xs, ys } = prepareData();
+          const epochs = parseInt(document.getElementById("epochs").value, 10);
+          console.log("Starting training fit...");
+          await model.fit(xs, ys, {
+            epochs: epochs,
+            callbacks: {
+              onEpochEnd: async (epoch, logs) => {
+                globalEpochCounter++;
+                const statusText = `Epoch ${globalEpochCounter}: loss = ${logs.loss.toFixed(4)}\n`;
+                document.getElementById("trainingStatus").textContent += statusText;
+                // Update the loss chart (assuming updateLossChart is defined in charting.js)
+                updateLossChart(globalEpochCounter, logs.loss);
+                await tf.nextFrame();
+              },
+            },
+          });
+          xs.dispose();
+          ys.dispose();
+        } catch (err) {
+          console.error("Error during training:", err);
+          alert("Training failed: " + err.message);
+        } finally {
+          trainButton.disabled = false;
+          spinner.style.display = "none";
+        }
       }
-      let prompt = document.getElementById("inputText").value;
-      let generated = prompt;
-      // Ensure the initial inputSequence is exactly SEQ_LENGTH characters.
 
-      // Autoregressively generate 10 tokens.
+      // --- Inference Function ---
+      // This function accepts any input string (even if shorter than SEQ_LENGTH),
+      // pads it to SEQ_LENGTH, and then autoregressively predicts 10 next tokens.
+      async function runInference() {
+        if (!model) {
+          alert("Please train the model first!");
+          return;
+        }
+        let prompt = document.getElementById("inputText").value;
+        // Ensure prompt is exactly SEQ_LENGTH characters.
+        if (prompt.length < SEQ_LENGTH) {
+          prompt = prompt.padEnd(SEQ_LENGTH, " ");
+        } else if (prompt.length > SEQ_LENGTH) {
+          prompt = prompt.slice(prompt.length - SEQ_LENGTH);
+        }
+        let generated = prompt;
+        const NUM_TOKENS_TO_GENERATE = 10;
 
-      document.getElementById("result").textContent = generated;
-    }
+        for (let i = 0; i < NUM_TOKENS_TO_GENERATE; i++) {
+          const inputSeq = generated.slice(-SEQ_LENGTH);
+          const inputIndices = Array.from(inputSeq).map(ch => ch.charCodeAt(0));
+          const inputTensor = tf.tensor2d([inputIndices], [1, SEQ_LENGTH], 'int32');
+          const prediction = model.predict(inputTensor);
+          const predictedIndexTensor = prediction.argMax(-1);
+          const predictedIndex = (await predictedIndexTensor.data())[0];
+          const predictedChar = String.fromCharCode(predictedIndex);
+          generated += predictedChar;
 
-  </script>
-</body>
-
+          tf.dispose([inputTensor, prediction, predictedIndexTensor]);
+          await tf.nextFrame();
+        }
+        document.getElementById("result").textContent = generated;
+      }
+    </script>
+  </body>
 </html>
