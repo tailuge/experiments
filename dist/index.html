@@ -1,176 +1,243 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8" />
-    <title>Minimal TF.js Next-Token Predictor with Loss Chart</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="styles.css">
-  </head>
-  <body>
-    <h3>Training Data (one sample per line):</h3>
-    <textarea id="trainingData" rows="5" cols="80">
-abcdefghijklmnopqrstuvwxyz.
-zyxwvutsrqponmlkjihgfedcba.
-abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
-zyxwvutsrqponmlkjihgfedcbaabcdefghijklmnopqrstuvwxyz
-    </textarea>
-    <br />
+<head>
+    <title>Transformer Training Demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <style>
+        body { font-family: sans-serif; }
+        #container { width: 800px; margin: auto; }
+        textarea { width: 100%; height: 200px; margin-bottom: 10px; }
+        button { padding: 10px; margin-right: 10px; }
+        #lossCanvas { width: 100%; height: 300px; }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>Transformer Autoregressive Training</h1>
+        <textarea id="inputText">
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. h4 g4 5. Ne5
+1. e4 e5 2. f4 exf4 3. Nf3 Be7 4. Bc4 Bh4+ 5. g3
+1. e4 e5 2. f4 exf4 3. Bc4 Qh4+ 4. Kf1 b5 5. Bxb5
+        </textarea>
+        <div>
+            <button id="trainButton">Train</button>
+            Epochs: <input type="number" id="epochsInput" value="10">
+            <button id="inferButton">Infer</button>
+            Prefix: <input type="text" id="prefixInput" value="1. e4">
+            <span id="inferenceOutput"></span>
+        </div>
+        <div>
+            <button id="saveButton">Save Model</button>
+            <button id="loadButton">Load Model</button>
+        </div>
 
-    <label for="epochs">Epochs:</label>
-    <input type="number" id="epochs" value="5" min="1" max="50" style="width: 50px" />
-    <button id="trainButton" onclick="trainModel()">Train Model</button>
-    <span id="trainSpinner" class="spinner"></span>
+        <canvas id="lossCanvas"></canvas>
+        <script>
+          const trainButton = document.getElementById('trainButton');
+          const inferButton = document.getElementById('inferButton');
+          const inputText = document.getElementById('inputText');
+          const epochsInput = document.getElementById('epochsInput');
+          const prefixInput = document.getElementById('prefixInput');
+          const inferenceOutput = document.getElementById('inferenceOutput');
+          const lossCanvas = document.getElementById('lossCanvas');
+          const saveButton = document.getElementById('saveButton');
+          const loadButton = document.getElementById('loadButton');
 
-    <h3>Inference:</h3>
-    <input type="text" id="inputText" value="abc" />
-    <button onclick="runInference()">Test</button>
-    <div id="result" style="margin-top: 10px; font-weight: bold"></div>
 
-    <h3>Training Status:</h3>
-    <pre id="trainingStatus" style="background: #f0f0f0; padding: 5px"></pre>
+          let model;
+          let charToIndex;
+          let indexToChar;
+          let vocabSize;
+          let allLosses = []; // Store all losses across multiple training sessions
+          const minEpochsForPlot = 100;
 
-    <h3>Training Loss Graph:</h3>
-    <canvas id="lossChart" width="600" height="150"></canvas>
 
-    <script src="charting.js"></script>
-    <script>
-      // --- Global Constants & Variables ---
-      const SEQ_LENGTH = 24;
-      const VOCAB_SIZE = 128;  // Using standard ASCII.
-      let model;
-      let globalEpochCounter = 0;
+          function buildModel(vocabSize, embeddingDim, rnnUnits) {
+              const model = tf.sequential();
+              model.add(tf.layers.embedding({
+                  inputDim: vocabSize,
+                  outputDim: embeddingDim,
+                  inputLength: null
+              }));
+              model.add(tf.layers.simpleRNN({
+                  units: rnnUnits,
+                  returnSequences: true,
+                  recurrentInitializer: 'glorotNormal'
+              }));
+               model.add(tf.layers.dense({
+                  units: vocabSize,
+                  activation: 'softmax'
+               }));
+              return model;
+          }
 
-      // --- Model Definition ---
-      function createModel() {
-        const model = tf.sequential();
-        model.add(tf.layers.embedding({
-          inputDim: VOCAB_SIZE,
-          outputDim: 8,
-          inputLength: SEQ_LENGTH,
-        }));
-        model.add(tf.layers.lstm({ units: 4 }));
-        model.add(tf.layers.dense({
-          units: VOCAB_SIZE,
-          activation: "softmax",
-        }));
-        console.log("Model created");
-        return model;
-      }
+          function preprocessData(text) {
+              const lines = text.trim().split('\n');
+              const chars = [...new Set(lines.join('').split(''))].sort();
+              charToIndex = {};
+              indexToChar = {};
+              chars.forEach((char, index) => {
+                  charToIndex[char] = index;
+                  indexToChar[index] = char;
+              });
+              vocabSize = chars.length;
 
-      model = createModel();
-      console.log("Compile model");
-      model.compile({
-        optimizer: tf.train.adam(),
-        loss: "sparseCategoricalCrossentropy",
-      });
-      document.getElementById("trainSpinner").style.display = "none";
+              const sequences = lines.map(line =>
+                  line.trim().split('').map(char => charToIndex[char])
+              );
+              return sequences;
+          }
 
-      // --- Data Preparation ---
-      // For each training sample (one sample per line), slide a window of SEQ_LENGTH and use the following character as the target.
-      function prepareData() {
-        const rawData = document
-          .getElementById("trainingData")
-          .value.split("\n")
-          .map((line) => line.trim())
-          .filter((line) => line.length > 0);
-        const inputs = [];
-        const labels = [];
+          function createDataset(sequences, seqLength) {
+            const inputSequences = [];
+            const targetSequences = [];
 
-        rawData.forEach((line) => {
-          if (line.length > SEQ_LENGTH) {
-            for (let i = 0; i <= line.length - SEQ_LENGTH - 1; i++) {
-              const inputWindow = line.slice(i, i + SEQ_LENGTH);
-              const targetChar = line.charAt(i + SEQ_LENGTH);
-              // Convert each character to its ASCII code.
-              const inputIndices = Array.from(inputWindow).map(ch => ch.charCodeAt(0));
-              const labelIndex = targetChar.charCodeAt(0);
-              inputs.push(inputIndices);
-              labels.push(labelIndex);
+            for (const sequence of sequences) {
+                for (let i = 0; i < sequence.length - seqLength; i++) {
+                    inputSequences.push(sequence.slice(i, i + seqLength));
+                    targetSequences.push(sequence.slice(i + 1, i + seqLength + 1));
+                }
+            }
+            return [tf.tensor2d(inputSequences, [inputSequences.length, seqLength], 'int32'),
+                    tf.oneHot(tf.tensor2d(targetSequences, [targetSequences.length, seqLength], 'int32'), vocabSize)];
+          }
+
+
+
+          async function trainModel(epochs) {
+              const text = inputText.value;
+              const sequences = preprocessData(text);
+              const seqLength = 10;
+              const [input, target] = createDataset(sequences, seqLength);
+
+              if (!model) {
+                  const embeddingDim = 8;
+                  const rnnUnits = 16;
+                  model = buildModel(vocabSize, embeddingDim, rnnUnits);
+                   model.compile({
+                      optimizer: tf.train.adam(0.01),
+                      loss: 'categoricalCrossentropy',
+                       metrics:['accuracy']
+                  });
+              }
+
+
+                const h =  await model.fit(input, target, {
+                      epochs: epochs,
+                      batchSize: 32,
+                      shuffle: true,
+                      callbacks: {
+                        onEpochEnd: async (epoch, logs) => {
+                            console.log(`Epoch ${epoch + 1}: loss = ${logs.loss}`);
+                            allLosses.push(logs.loss);
+                            plotLoss(allLosses);
+                        }
+                    }
+                  });
+
+              input.dispose();
+              target.dispose();
+          }
+
+
+          function plotLoss(losses) {
+            const ctx = lossCanvas.getContext('2d');
+            ctx.clearRect(0, 0, lossCanvas.width, lossCanvas.height);
+
+            if (losses.length < 2) {
+                return;
+            }
+
+            const logLosses = losses.map(loss => Math.log(loss));  // Calculate log loss
+
+            const minLogLoss = Math.min(...logLosses);
+            const maxLogLoss = Math.max(...logLosses);
+
+             // Ensure at least minEpochsForPlot are shown
+            const numEpochs = Math.max(losses.length, minEpochsForPlot);
+            const scaleX = (lossCanvas.width - 20) / (numEpochs -1);
+            const scaleY = (lossCanvas.height - 20) / (maxLogLoss - minLogLoss);
+
+
+            ctx.beginPath();
+            ctx.moveTo(10, lossCanvas.height - 10 - (logLosses[0] - minLogLoss) * scaleY);
+
+            for (let i = 1; i < losses.length; i++) {
+                 const x = 10 + i * scaleX;
+                const y = lossCanvas.height - 10 - (logLosses[i] - minLogLoss) * scaleY;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+
+
+          async function infer(prefix, numGenerate = 20) {
+              if (!model) {
+                inferenceOutput.textContent = "Model not trained yet!";
+                return;
+              }
+                const prefixIndices = prefix.split('').map(char => charToIndex[char] || 0);
+                let input = tf.tensor2d([prefixIndices], [1, prefixIndices.length], 'int32');
+                let generated = prefix;
+                model.resetStates();
+
+                for (let i = 0; i < numGenerate; i++) {
+                    const output = model.predict(input);
+                    const predictedIndex = (await (output.squeeze([0])).argMax(-1).data())[prefixIndices.length -1 + i];
+
+                    generated += indexToChar[predictedIndex] || '';
+
+                    let nextInput = new Array(prefixIndices.length + i + 1).fill(0)
+                    nextInput.splice(0, generated.length)
+                    nextInput.push(...generated.split('').map( c => charToIndex[c] || 0))
+
+                    input.dispose();
+                    input = tf.tensor2d([nextInput], [1, nextInput.length], 'int32');
+
+                }
+                inferenceOutput.textContent = generated;
+                input.dispose();
+          }
+
+
+          async function saveModel() {
+            await model.save('localstorage://my-model');
+            console.log("Model saved to local storage");
+          }
+
+          async function loadModel() {
+            try {
+              model = await tf.loadLayersModel('localstorage://my-model');
+              // We need to re-preprocess to set up charToIndex, etc.
+              preprocessData(inputText.value);
+              model.compile({ // Re-compile after loading.
+                optimizer: tf.train.adam(0.01),
+                loss: 'categoricalCrossentropy',
+                metrics: ['accuracy']
+               });
+              console.log("Model loaded from local storage");
+            } catch (error) {
+              console.error("Error loading model:", error);
+              alert("Failed to load model.  Ensure a model has been saved.");
             }
           }
-        });
 
-        if (inputs.length === 0) {
-          throw new Error("Not enough data to create training samples. Check your training data and SEQ_LENGTH.");
-        }
 
-        // Create input tensor (int32) and cast label tensor to float32.
-        const xs = tf.tensor2d(inputs, [inputs.length, SEQ_LENGTH], 'int32');
-        const ys = tf.tensor1d(labels, 'int32').toFloat(); // <-- Cast labels to float32.
-        return { xs, ys };
-      }
-
-      // --- Training Function ---
-      async function trainModel() {
-        const trainButton = document.getElementById('trainButton');
-        const spinner = document.getElementById('trainSpinner');
-
-        trainButton.disabled = true;
-        spinner.style.display = "inline-block";
-        document.getElementById("trainingStatus").textContent = "";
-
-        try {
-          const { xs, ys } = prepareData();
-          const epochs = parseInt(document.getElementById("epochs").value, 10);
-          console.log("Starting training fit...");
-          await model.fit(xs, ys, {
-            epochs: epochs,
-            callbacks: {
-              onEpochEnd: async (epoch, logs) => {
-                globalEpochCounter++;
-                const statusText = `Epoch ${globalEpochCounter}: loss = ${logs.loss.toFixed(4)}\n`;
-                document.getElementById("trainingStatus").textContent += statusText;
-                // Update the loss chart (assuming updateLossChart is defined in charting.js)
-                updateLossChart(globalEpochCounter, logs.loss);
-                await tf.nextFrame();
-              },
-            },
+          trainButton.addEventListener('click', async () => {
+              const epochs = parseInt(epochsInput.value, 10);
+              await trainModel(epochs);
           });
-          xs.dispose();
-          ys.dispose();
-        } catch (err) {
-          console.error("Error during training:", err);
-          alert("Training failed: " + err.message);
-        } finally {
-          trainButton.disabled = false;
-          spinner.style.display = "none";
-        }
-      }
 
-      // --- Inference Function ---
-      // This function accepts any input string (even if shorter than SEQ_LENGTH),
-      // pads it to SEQ_LENGTH, and then autoregressively predicts 10 next tokens.
-      async function runInference() {
-        if (!model) {
-          alert("Please train the model first!");
-          return;
-        }
-        let prompt = document.getElementById("inputText").value;
-        // Ensure prompt is exactly SEQ_LENGTH characters.
-        if (prompt.length < SEQ_LENGTH) {
-          prompt = prompt.padEnd(SEQ_LENGTH, " ");
-        } else if (prompt.length > SEQ_LENGTH) {
-          prompt = prompt.slice(prompt.length - SEQ_LENGTH);
-        }
-        let generated = prompt;
-        const NUM_TOKENS_TO_GENERATE = 10;
+          inferButton.addEventListener('click', () => {
+              const prefix = prefixInput.value;
+              infer(prefix);
+          });
 
-        for (let i = 0; i < NUM_TOKENS_TO_GENERATE; i++) {
-          const inputSeq = generated.slice(-SEQ_LENGTH);
-          const inputIndices = Array.from(inputSeq).map(ch => ch.charCodeAt(0));
-          const inputTensor = tf.tensor2d([inputIndices], [1, SEQ_LENGTH], 'int32');
-          const prediction = model.predict(inputTensor);
-          const predictedIndexTensor = prediction.argMax(-1);
-          const predictedIndex = (await predictedIndexTensor.data())[0];
-          const predictedChar = String.fromCharCode(predictedIndex);
-          generated += predictedChar;
+          saveButton.addEventListener('click', saveModel);
+          loadButton.addEventListener('click', loadModel);
 
-          tf.dispose([inputTensor, prediction, predictedIndexTensor]);
-          await tf.nextFrame();
-        }
-        document.getElementById("result").textContent = generated;
-      }
-    </script>
-  </body>
+        </script>
+    </div>
+</body>
 </html>
