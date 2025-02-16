@@ -1,0 +1,24 @@
+body {
+    font-family: sans-serif;
+}
+
+#container {
+    width: 800px;
+    margin: auto;
+}
+
+textarea {
+    width: 100%;
+    height: 200px;
+    margin-bottom: 10px;
+}
+
+button {
+    padding: 10px;
+    margin-right: 10px;
+}
+
+#lossCanvas {
+    width: 100%;
+    height: 300px;
+}
