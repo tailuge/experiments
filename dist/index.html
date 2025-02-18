@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Transformer Training Demo</title>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
@@ -7,6 +8,7 @@
     <script src="graphing.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div id="container">
         <h1>Transformer Autoregressive Training</h1>
@@ -17,6 +19,7 @@
 1. e4 e5 2. f4 d5 3. exd5 e4 4. d3 Nf6 5. dxe4 Nxe4
 1. e4 e5 2. f4 d5 3. exd5 c6 4. dxc6 Nxc6 5. Nf3 exf4
 1. e4 e5 2. f4 d5 3. exd5 Qxd5 4. Nc3 Qd8 5. Nf3 exf4
+1. e4 e5 2. f4 exf4 3. Ng1f3 Bf8e7 4. Bf1c4 Be7h4 
         </textarea>
         <div>
             <button id="trainButton">Train</button>
@@ -32,120 +35,122 @@
             <button id="loadButton">Load Model</button>
         </div>
 
-        <canvas id="lossCanvas" style="width: 600px; height: 400px;"></canvas>
+        <canvas id="lossCanvas" style="width: 600px; height: 380px;"></canvas>
         <script>
-          const trainButton = document.getElementById('trainButton');
-          const inferButton = document.getElementById('inferButton');
-          const inputText = document.getElementById('inputText');
-          const epochsInput = document.getElementById('epochsInput');
-          const prefixInput = document.getElementById('prefixInput');
-          const inferenceOutput = document.getElementById('inferenceOutput');
-          const lossCanvas = document.getElementById('lossCanvas');
-          const saveButton = document.getElementById('saveButton');
-          const loadButton = document.getElementById('loadButton');
+            const trainButton = document.getElementById('trainButton');
+            const inferButton = document.getElementById('inferButton');
+            const inputText = document.getElementById('inputText');
+            const epochsInput = document.getElementById('epochsInput');
+            const prefixInput = document.getElementById('prefixInput');
+            const inferenceOutput = document.getElementById('inferenceOutput');
+            const lossCanvas = document.getElementById('lossCanvas');
+            const saveButton = document.getElementById('saveButton');
+            const loadButton = document.getElementById('loadButton');
 
-          let model;
-          let charToIndex;
-          let indexToChar;
-          let vocabSize;
-          let allLosses = [];
-          
-          function buildModel(vocabSize, embeddingDim, rnnUnits) {
-              const model = tf.sequential();
-              model.add(tf.layers.embedding({
-                  inputDim: vocabSize,
-                  outputDim: embeddingDim,
-                  inputLength: null
-              }));
-              model.add(tf.layers.simpleRNN({
-                  units: rnnUnits,
-                  returnSequences: true,
-                  recurrentInitializer: 'glorotNormal'
-              }));
-               model.add(tf.layers.dense({
-                  units: vocabSize,
-                  activation: 'softmax'
-               }));
-              return model;
-          }
+            let model;
+            let charToIndex;
+            let indexToChar;
+            let vocabSize;
+            let allLosses = [];
 
-          function preprocessData(text) {
-              const lines = text.trim().split('\n');
-              const chars = [...new Set(lines.join('').split(''))].sort();
-              charToIndex = {};
-              indexToChar = {};
-              chars.forEach((char, index) => {
-                  charToIndex[char] = index;
-                  indexToChar[index] = char;
-              });
-              vocabSize = chars.length;
-
-              const sequences = lines.map(line =>
-                  line.trim().split('').map(char => charToIndex[char])
-              );
-              return sequences;
-          }
-
-          function createDataset(sequences, seqLength) {
-            const inputSequences = [];
-            const targetSequences = [];
-
-            for (const sequence of sequences) {
-                for (let i = 0; i < sequence.length - seqLength; i++) {
-                    inputSequences.push(sequence.slice(i, i + seqLength));
-                    targetSequences.push(sequence.slice(i + 1, i + seqLength + 1));
-                }
+            function buildModel(vocabSize, embeddingDim, rnnUnits) {
+                const model = tf.sequential();
+                model.add(tf.layers.embedding({
+                    inputDim: vocabSize,
+                    outputDim: embeddingDim,
+                    inputLength: null
+                }));
+                model.add(tf.layers.simpleRNN({
+                    units: rnnUnits,
+                    returnSequences: true,
+                    recurrentInitializer: 'glorotNormal'
+                }));
+                model.add(tf.layers.dense({
+                    units: vocabSize,
+                    activation: 'softmax'
+                }));
+                return model;
             }
-            return [tf.tensor2d(inputSequences, [inputSequences.length, seqLength], 'int32'),
-                    tf.oneHot(tf.tensor2d(targetSequences, [targetSequences.length, seqLength], 'int32'), vocabSize)];
-          }
+
+            function preprocessData(text) {
+                const lines = text.trim().split('\n');
+                const chars = [...new Set(lines.join('').split(''))].sort();
+                charToIndex = {};
+                indexToChar = {};
+                chars.forEach((char, index) => {
+                    charToIndex[char] = index;
+                    indexToChar[index] = char;
+                });
+                vocabSize = chars.length;
+
+                const sequences = lines.map(line =>
+                    line.trim().split('').map(char => charToIndex[char])
+                );
+                return sequences;
+            }
+
+            function createDataset(sequences, seqLength) {
+                const inputSequences = [];
+                const targetSequences = [];
+
+                for (const sequence of sequences) {
+                    for (let i = 0; i < sequence.length - seqLength; i++) {
+                        inputSequences.push(sequence.slice(i, i + seqLength));
+                        targetSequences.push(sequence.slice(i + 1, i + seqLength + 1));
+                    }
+                }
+                return [tf.tensor2d(inputSequences, [inputSequences.length, seqLength], 'int32'),
+                tf.oneHot(tf.tensor2d(targetSequences, [targetSequences.length, seqLength], 'int32'), vocabSize)];
+            }
 
 
 
-          async function trainModel(epochs) {
-              if (!lossChart) {
-                  initChart(lossCanvas);
-              }
-              const text = inputText.value;
-              const sequences = preprocessData(text);
-              const seqLength = 10;
-              const [input, target] = createDataset(sequences, seqLength);
+            async function trainModel(epochs) {
+                if (!lossChart) {
+                    initChart(lossCanvas);
+                }
+                const text = inputText.value;
+                const sequences = preprocessData(text);
+                const seqLength = 10;
+                const [input, target] = createDataset(sequences, seqLength);
 
-              if (!model) {
-                  const embeddingDim = 8;
-                  const rnnUnits = 8;
-                  model = buildModel(vocabSize, embeddingDim, rnnUnits);
-                   model.compile({
-                      optimizer: tf.train.adam(0.01),
-                      loss: 'categoricalCrossentropy',
-                       metrics:['accuracy']
-                  });
-              }
+                if (!model) {
+                    const embeddingDim = 8;
+                    const rnnUnits = 8;
+                    model = buildModel(vocabSize, embeddingDim, rnnUnits);
+                    model.compile({
+                        optimizer: tf.train.adam(0.01),
+                        loss: 'categoricalCrossentropy',
+                        metrics: ['accuracy']
+                    });
+                }
 
 
-                const h =  await model.fit(input, target, {
-                      epochs: epochs,
-                      batchSize: 32,
-                      shuffle: true,
-                      callbacks: {
+                const h = await model.fit(input, target, {
+                    epochs: epochs,
+                    batchSize: 32,
+                    shuffle: true,
+                    callbacks: {
                         onEpochEnd: async (epoch, logs) => {
                             console.log(`Epoch ${epoch + 1}: loss = ${logs.loss}`);
                             allLosses.push(logs.loss);
                             updateChart(allLosses);
                         }
                     }
-                  });
+                });
 
-              input.dispose();
-              target.dispose();
-          }
+                input.dispose();
+                target.dispose();
+            }
 
 
-          async function infer(prefix, numGenerate = 20) {
-              if (!model) {
-                inferenceOutput.textContent = "Model not trained yet!";
-                return;
-              }
+            async function infer(prefix, numGenerate = 32) {
+                if (!model) {
+                    inferenceOutput.textContent = "Model not trained yet!";
+                    return;
+                }
+                console.log("Generating text with prefix: ", prefix);
+                inferenceOutput.textContent = "Generating...";
                 const prefixIndices = prefix.split('').map(char => charToIndex[char] || 0);
                 let input = tf.tensor2d([prefixIndices], [1, prefixIndices.length], 'int32');
                 let generated = prefix;
@@ -153,13 +158,13 @@
 
                 for (let i = 0; i < numGenerate; i++) {
                     const output = model.predict(input);
-                    const predictedIndex = (await (output.squeeze([0])).argMax(-1).data())[prefixIndices.length -1 + i];
+                    const predictedIndex = (await (output.squeeze([0])).argMax(-1).data())[prefixIndices.length - 1 + i];
 
                     generated += indexToChar[predictedIndex] || '';
 
                     let nextInput = new Array(prefixIndices.length + i + 1).fill(0)
                     nextInput.splice(0, generated.length)
-                    nextInput.push(...generated.split('').map( c => charToIndex[c] || 0))
+                    nextInput.push(...generated.split('').map(c => charToIndex[c] || 0))
 
                     input.dispose();
                     input = tf.tensor2d([nextInput], [1, nextInput.length], 'int32');
@@ -167,46 +172,48 @@
                 }
                 inferenceOutput.textContent = generated;
                 input.dispose();
-          }
-
-
-          async function saveModel() {
-            await model.save('localstorage://my-model');
-            console.log("Model saved to local storage");
-          }
-
-          async function loadModel() {
-            try {
-              model = await tf.loadLayersModel('localstorage://my-model');
-              // We need to re-preprocess to set up charToIndex, etc.
-              preprocessData(inputText.value);
-              model.compile({ // Re-compile after loading.
-                optimizer: tf.train.adam(0.01),
-                loss: 'categoricalCrossentropy',
-                metrics: ['accuracy']
-               });
-              console.log("Model loaded from local storage");
-            } catch (error) {
-              console.error("Error loading model:", error);
-              alert("Failed to load model.  Ensure a model has been saved.");
+                console.log("Generated text: ", generated);
             }
-          }
 
 
-          trainButton.addEventListener('click', async () => {
-              const epochs = parseInt(epochsInput.value, 10);
-              await trainModel(epochs);
-          });
+            async function saveModel() {
+                await model.save('localstorage://my-model');
+                console.log("Model saved to local storage");
+            }
 
-          inferButton.addEventListener('click', () => {
-              const prefix = prefixInput.value;
-              infer(prefix);
-          });
+            async function loadModel() {
+                try {
+                    model = await tf.loadLayersModel('localstorage://my-model');
+                    // We need to re-preprocess to set up charToIndex, etc.
+                    preprocessData(inputText.value);
+                    model.compile({ // Re-compile after loading.
+                        optimizer: tf.train.adam(0.01),
+                        loss: 'categoricalCrossentropy',
+                        metrics: ['accuracy']
+                    });
+                    console.log("Model loaded from local storage");
+                } catch (error) {
+                    console.error("Error loading model:", error);
+                    alert("Failed to load model.  Ensure a model has been saved.");
+                }
+            }
 
-          saveButton.addEventListener('click', saveModel);
-          loadButton.addEventListener('click', loadModel);
+
+            trainButton.addEventListener('click', async () => {
+                const epochs = parseInt(epochsInput.value, 10);
+                await trainModel(epochs);
+            });
+
+            inferButton.addEventListener('click', () => {
+                const prefix = prefixInput.value;
+                infer(prefix);
+            });
+
+            saveButton.addEventListener('click', saveModel);
+            loadButton.addEventListener('click', loadModel);
 
         </script>
     </div>
 </body>
+
 </html>
