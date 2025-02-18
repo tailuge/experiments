@@ -158,8 +158,24 @@
 
                 for (let i = 0; i < numGenerate; i++) {
                     const output = model.predict(input);
-                    const predictedIndex = (await (output.squeeze([0])).argMax(-1).data())[prefixIndices.length - 1 + i];
+                    //const predictedIndex = (await (output.squeeze([0])).argMax(-1).data())[prefixIndices.length - 1 + i];
+                    const outputTensor = output.squeeze([0]); // shape: [sequenceLength, vocabSize]
+                    const logits = outputTensor.slice([outputTensor.shape[0] - 1, 0], [1, vocabSize]); // last timestep logits
 
+                    // Restrict sampling to the top 2 probabilities
+                    const k = 2;
+                    const { values: topkValues, indices: topkIndices } = tf.topk(logits, k);
+
+                    // Convert top-k logits to probabilities
+                    const topkProbs = tf.softmax(topkValues);
+
+                    // Sample from the top-k probabilities
+                    const sampled = await tf.multinomial(topkProbs, 1).data();
+                    const sampledIndexInTopk = sampled[0];
+
+                    // Map the sampled index back to the original vocabulary index
+                    const topkIndicesData = await topkIndices.data();
+                    const predictedIndex = topkIndicesData[sampledIndexInTopk];
                     generated += indexToChar[predictedIndex] || '';
 
                     let nextInput = new Array(prefixIndices.length + i + 1).fill(0)
