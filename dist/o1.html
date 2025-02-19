@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TF.js Transformer Decoder Demo</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    canvas { max-width: 600px; }
+    #train-btn { margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Chess Transformer</h1>
+  <div>
+    <button id="train-btn">Train Model</button>
+    <input type="text" id="prefix" placeholder="Enter move prefix (e.g., '1. e4')" style="width: 200px;">
+    <button id="generate-btn">Generate</button>
+  </div>
+  <pre id="training-data">
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. h4 g4 5. Ne5
+1. e4 e5 2. f4 exf4 3. Nf3 Be7 4. Bc4 Bh4+ 5. g3
+1. e4 e5 2. f4 exf4 3. Bc4 Qh4+ 4. Kf1 b5 5. Bxb5
+1. e4 e5 2. f4 d5 3. exd5 e4 4. d3 Nf6 5. dxe4 Nxe4
+1. e4 e5 2. f4 d5 3. exd5 c6 4. dxc6 Nxc6 5. Nf3 exf4
+1. e4 e5 2. f4 d5 3. exd5 Qxd5 4. Nc3 Qd8 5. Nf3 exf4</pre>
+  <pre id="output"></pre>
+
+  <script type="module">
+    import { buildTransformerModel, preprocessData, generateText } from './transformer.js';
+
+    const trainingData = document.getElementById('training-data').innerText.trim().split('\n');
+    let model;
+
+    document.getElementById('train-btn').addEventListener('click', async () => {
+      const output = document.getElementById('output');
+      output.textContent = 'Training...';
+      
+      model = buildTransformerModel();
+      const { xs, ys } = preprocessData(trainingData);
+      
+      await model.fit(xs, ys, {
+        epochs: 100,
+        callbacks: {
+          onEpochEnd: (epoch, logs) => {
+            output.textContent = 
+              `Epoch ${epoch + 1}: loss = ${logs.loss.toFixed(4)}, accuracy = ${logs.acc.toFixed(4)}`;
+          }
+        }
+      });
+      
+      output.textContent += '\nTraining complete!';
+      xs.dispose();
+      ys.dispose();
+    });
+
+    document.getElementById('generate-btn').addEventListener('click', async () => {
+      if (!model) {
+        alert('Please train the model first');
+        return;
+      }
+      const prefix = document.getElementById('prefix').value;
+      const generated = await generateText(model, prefix);
+      document.getElementById('output').textContent = generated;
+    });
+  </script>
+</body>
+</html>

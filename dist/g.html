@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Transformer Demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+    <style>
+        body { font-family: sans-serif; }
+        #output { margin-top: 20px; border: 1px solid #ccc; padding: 10px; min-height: 50px; white-space: pre-wrap; }
+        #input { width: 80%; padding: 5px; }
+        button { padding: 8px 15px; margin-right: 10px; }
+    </style>
+</head>
+<body>
+
+<h1>Simple Transformer Demo</h1>
+
+<p>Data: (King's Gambit variations)</p>
+<pre>
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. h4 g4 5. Ne5
+1. e4 e5 2. f4 exf4 3. Nf3 Be7 4. Bc4 Bh4+ 5. g3
+1. e4 e5 2. f4 exf4 3. Bc4 Qh4+ 4. Kf1 b5 5. Bxb5
+1. e4 e5 2. f4 d5 3. exd5 e4 4. d3 Nf6 5. dxe4 Nxe4
+1. e4 e5 2. f4 d5 3. exd5 c6 4. dxc6 Nxc6 5. Nf3 exf4
+1. e4 e5 2. f4 d5 3. exd5 Qxd5 4. Nc3 Qd8 5. Nf3 exf4
+</pre>
+
+<div>
+    <input type="text" id="input" placeholder="Enter prefix (e.g., 1. e4 e5)">
+    <button id="inferBtn">Infer</button>
+</div>
+
+<button id="trainBtn">Train</button>
+<div id="output"></div>
+
+<script type="module">
+    import { ChessTransformer } from './model.js';
+
+    const transformer = new ChessTransformer();
+    
+    const rawData = [
+        "1. e4 e5 2. f4 exf4 3. Nf3 g5 4. h4 g4 5. Ne5",
+        "1. e4 e5 2. f4 exf4 3. Nf3 Be7 4. Bc4 Bh4+ 5. g3",
+        "1. e4 e5 2. f4 exf4 3. Bc4 Qh4+ 4. Kf1 b5 5. Bxb5",
+        "1. e4 e5 2. f4 d5 3. exd5 e4 4. d3 Nf6 5. dxe4 Nxe4",
+        "1. e4 e5 2. f4 d5 3. exd5 c6 4. dxc6 Nxc6 5. Nf3 exf4",
+        "1. e4 e5 2. f4 d5 3. exd5 Qxd5 4. Nc3 Qd8 5. Nf3 exf4",
+    ];
+
+    document.getElementById('trainBtn').addEventListener('click', async () => {
+        transformer.buildModel();
+        document.getElementById('output').textContent = 'Training started...';
+        await transformer.train(rawData, (epoch, logs) => {
+            document.getElementById('output').textContent = 
+                `Training... Epoch ${epoch + 1}: loss = ${logs.loss.toFixed(4)}, accuracy = ${logs.acc.toFixed(4)}`;
+        });
+        document.getElementById('output').textContent = 'Training complete!';
+    });
+
+    document.getElementById('inferBtn').addEventListener('click', async () => {
+        const prefix = document.getElementById('input').value;
+        if (!transformer.model) {
+            document.getElementById('output').textContent = "Please train the model first.";
+            return;
+        }
+        const generatedText = await transformer.generate(prefix, 32);
+        document.getElementById('output').textContent = generatedText;
+    });
+</script>
+
+</body>
+</html>
