@@ -82,7 +82,7 @@
                     indexToChar[index] = char;
                 });
                 vocabSize = chars.length;
-
+                console.log("Vocabulary size: ", vocabSize);
                 const sequences = lines.map(line =>
                     line.trim().split('').map(char => charToIndex[char])
                 );
@@ -169,8 +169,20 @@
                     // Convert top-k logits to probabilities
                     const topkProbs = tf.softmax(topkValues);
 
+
+                    const skewedProbs = tf.pow(topkProbs, 4);
+
+                    // 4. Normalize again!  Crucially, after raising to a power,
+                    //    the values will no longer sum to 1.  tf.multinomial
+                    //    expects probabilities (summing to 1), so we *must* re-normalize.
+                    const normalizedSkewedProbs = tf.div(
+                        skewedProbs,
+                        tf.sum(skewedProbs)
+                    );
+
+
                     // Sample from the top-k probabilities
-                    const sampled = await tf.multinomial(topkProbs, 1).data();
+                    const sampled = await tf.multinomial(normalizedSkewedProbs, 1).data();
                     const sampledIndexInTopk = sampled[0];
 
                     // Map the sampled index back to the original vocabulary index
